@@ -1,0 +1,12 @@
+[
+    {"name": "puzzle_1", "reset_pin": 67, "override_pin": 66},
+    {"name": "puzzle_2", "reset_pin": 65, "override_pin": 64},
+    {"name": "puzzle_3", "reset_pin": 63, "override_pin": 23},
+    {"name": "puzzle_4", "reset_pin": 62, "override_pin": 29},
+    {"name": "puzzle_5", "reset_pin": 31, "override_pin": 33},
+    {"name": "puzzle_6", "reset_pin": 53, "override_pin": 51},
+    {"name": "puzzle_7", "reset_pin": 49, "override_pin": 47},
+    {"name": "puzzle_8", "reset_pin": 45, "override_pin": 43},
+    {"name": "puzzle_9", "reset_pin": 41, "override_pin": 39},
+    {"name": "puzzle_10", "reset_pin": 37, "override_pin": 35}
+]
