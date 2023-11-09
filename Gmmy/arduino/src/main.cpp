@@ -1,12 +1,11 @@
 #include <Arduino.h>
 #include <FastLED.h>
 
-void playSound(uint8_t soundNumber);
 #include "Puzzle.h"
 
- #define SERIAL_DEBUGGING
+//  #define SERIAL_DEBUGGING
 
-enum SFX_1 {
+enum SFX {
   NONE = -1, // to represent no sound or error
   EXPLOSION = 1, // 1-1
   GUNSHOT, // 1-2
@@ -41,6 +40,18 @@ enum SFX_1 {
   // more can be added...
 };
 
+enum RELAY {
+    NO_RELAY = -1,
+    TREE_DOOR = 52,
+    CEMETARY_DOOR = 50,
+    HALLWAY_DOOR = 48,
+    ROTATING_DOOR = 46,
+    HALLWAY_UV = 44,
+    DRACULA_UV = 42
+};
+
+void playSound(SFX soundNumber);
+
 // Definitions
 #define N_PUZZLES 10
 #define LED_PIN 23
@@ -52,11 +63,53 @@ typedef uint8_t MessageSignal;
 const MessageSignal Puzzle1 = 0, Puzzle2 = 1, Puzzle3 = 2, Puzzle4 = 3, Puzzle5 = 4, Puzzle6 = 5, Puzzle7 = 6, Puzzle8 = 7, Puzzle9 = 8, Puzzle10 = 9, Sound = 19, Time = 20, Shutdown = 21, Startup = 22, Debug = 0x71, Query = 0x72, EndOfMessages = 0x7F;
 
 typedef uint8_t MessageData;
-const MessageData NoData = 0, Override = 1, Reset = 2, Unsolved = 3, Solved = 4, Extra = 5;
+const MessageData NoData = 0, Override = 1, Reset = 2, Unsolved = 3, Solved = 4, Blocked = 5, FirstSolved = 6;
+
+void resetCallback() {
+    #ifdef SERIAL_DEBUGGING
+    Serial.println("RESET");
+    #endif 
+
+    
+}
+
+void solvedCallback() {
+    #ifdef SERIAL_DEBUGGING
+    Serial.println("SOLVED");
+    #endif 
+}
+
+void altSolvedCallback() {
+    #ifdef SERIAL_DEBUGGING
+    Serial.println("ALT SOLVED");
+    #endif 
+}
+
+void updateRelay(RELAY relay, bool state) {
+    digitalWrite(relay, state);
+}
 
 Puzzle puzzles[] = {
-    Puzzle("lights", 4,5,6,7,255,255, Puzzle9, NoData, NONE, EXPLOSION, NONE),
-    Puzzle("dracula", 8,9,10,11,255,12, Puzzle10, NoData, Puzzle9, SCREAM, NONE),
+    Puzzle("hallway", 
+        A0,A1,A2,A3,A4,255, 
+        Puzzle5, NoData, NONE, 
+        {resetCallback, [](){ updateRelay(HALLWAY_DOOR, LOW); }}, 
+        {solvedCallback, [](){ playSound(SFX_13); }, [](){ updateRelay(HALLWAY_DOOR, HIGH); }}, 
+        {altSolvedCallback, [](){ playSound(SFX_16); }}),
+
+    Puzzle("lights", 
+        4,5,6,7,255,255, 
+        Puzzle9, NoData, NONE, 
+        {resetCallback}, 
+        {solvedCallback}, 
+        {altSolvedCallback}
+    ),
+    Puzzle("dracula", 
+        8,9,10,11,255,12, 
+        Puzzle10, NoData, Puzzle9, 
+        {resetCallback}, 
+        {solvedCallback}, 
+        {altSolvedCallback}),
 };
 
 struct Message {
@@ -87,7 +140,7 @@ void handle_message(MessageSignal sig, MessageData data) {
     if (sig == Sound) {
         // Serial.print("PLAY SOUND");
         // Serial.println(data);
-        playSound(data);
+        // playSound(data);
     }
 }
 
@@ -98,8 +151,9 @@ inline uint8_t reroute(uint8_t raw) {
 
 inline CRGB choose_color(MessageData data) {
     if(data == Unsolved) return CRGB(0, 128, 0);
-    else if(data == Extra) return CRGB(128, 128, 0);
+    else if(data == Blocked) return CRGB(128, 128, 0);
     else if(data == Solved) return CRGB(128, 0, 0);
+    else if(data == FirstSolved) return CRGB(128, 0, 128);
     else return CRGB(0, 0, 0);
 }
 
@@ -158,6 +212,7 @@ void update_light(MessageSignal sig, MessageData data) {
     if(sig <= Puzzle10) {
         leds[reroute(sig)] = choose_color(data);
         FastLED.show();
+        send_message_all(sig, data);
     }
 }
 
@@ -215,11 +270,11 @@ void handle_button(uint8_t which) {
      if (puzzleIndex != -1) { // A valid puzzle index was found
         MessageData newState = (which % 2 == 0) ? Override : Reset;
         if (newState == Override && puzzles[puzzleIndex].getSolvable()) {
-            puzzles[puzzleIndex].setState(newState);
+            puzzles[puzzleIndex].startPulse(newState);
         } else if (newState != Override) {
-            puzzles[puzzleIndex].setState(newState);
+            puzzles[puzzleIndex].startPulse(newState);
         }
-        send_message_all((MessageSignal)puzzleSignal, newState);
+        // send_message_all((MessageSignal)puzzleSignal, newState);
     } else {
         // Handle error case where there is no puzzle with the given signal
         #ifdef SERIAL_DEBUGGING
@@ -317,8 +372,7 @@ uint8_t translateSoundNumber(uint8_t desiredSound) {
 }
 
 
-void playSound(uint8_t soundNumber) {
-    Serial.println("PLAY SOUND");
+void playSound(SFX soundNumber) {
     if(soundNumber < 1 || soundNumber > 120) {
         return;
     }
@@ -355,7 +409,7 @@ void setup() {
         puzzles[i].setup();
         // puzzles[i].setState(Reset);
         puzzles[i].setCallback(update_light);
-        puzzles[i].setPlaySoundCallback(playSound);
+        // puzzles[i].setPlaySoundCallback(playSound);
     }
 
 
@@ -372,6 +426,7 @@ void loop() {
     }
     for (size_t i = 0; i < sizeof(puzzles) / sizeof(puzzles[0]); i++) {
         puzzles[i].checkPinChanges();
+
         
         if (puzzles[i].getCurrentState() == Solved) {
             for (size_t j = 0; j < sizeof(puzzles) / sizeof(puzzles[0]); j++) {
@@ -382,7 +437,7 @@ void loop() {
                         delay(50);
                         MessageData status = puzzles[j].getCurrentState();
                         update_light(puzzles[j].getSignal(), status);
-                        Serial.println(status);
+                        // Serial.println(status);
                     }
                 }
             }
@@ -401,6 +456,7 @@ void loop() {
         }
         
     }
+
 
     process_messages();
     delay(50);

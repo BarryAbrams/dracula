@@ -12,8 +12,9 @@ Puzzle::Puzzle(const char* name,
                MessageSignal signal,
                MessageData current_state,
                MessageSignal dependantPuzzle,
-               int solvedSoundEffectId,
-               int altSolvedSoundEffectId) :
+               std::vector<CallbackFunctionList> resetCallbacks,
+               std::vector<CallbackFunctionList> solvedCallbacks,
+               std::vector<CallbackFunctionList> altSolvedCallbacks) :
     name(name), 
     resetPin(resetPin), 
     overridePin(overridePin), 
@@ -24,8 +25,9 @@ Puzzle::Puzzle(const char* name,
     signal(signal), 
     current_state(current_state), 
     dependantPuzzle(dependantPuzzle),
-    solvedSoundEffectId(solvedSoundEffectId),
-    altSolvedSoundEffectId(altSolvedSoundEffectId) {
+    resetCallbacks(resetCallbacks),
+    solvedCallbacks(solvedCallbacks),
+    altSolvedCallbacks(altSolvedCallbacks) {
     // Initialize previous pin states to a known state, e.g., LOW
     for (int i = 0; i < 5; ++i) {
         prevPinStates[i] = LOW;
@@ -68,6 +70,18 @@ void Puzzle::setState(MessageData newState) {
     digitalWrite(overridePin, (newState & 2) ? HIGH : LOW);
 }
 
+void Puzzle::endPulse() {
+    digitalWrite(resetPin, LOW);
+    digitalWrite(overridePin, LOW);
+    pulseStartTime = 0;
+}
+
+void Puzzle::startPulse(MessageData newState) {
+    digitalWrite(resetPin, (newState & 1) ? HIGH : LOW);
+    digitalWrite(overridePin, (newState & 2) ? HIGH : LOW);
+    pulseStartTime = millis();
+}
+
 bool Puzzle::getSolvable() {
     if(solvablePin != 255) {
         return digitalRead(solvablePin);
@@ -76,57 +90,71 @@ bool Puzzle::getSolvable() {
     }
 }
 
+bool Puzzle::getAltSolved() {
+    return digitalRead(altSolvedPin);
+}
+
 void Puzzle::setSolvable(bool state) {
     digitalWrite(solvablePin, state);
 }
 
 void Puzzle::checkPinChanges() {
+    if (pulseStartTime != 0 && millis() - pulseStartTime >= 250) {
+        endPulse();
+    }
+
     MessageData computedData = 0;  // Initialize with some default value
     bool changed = false;
 
     uint8_t currentUnsolvedState = digitalRead(unsolvedPin);
     uint8_t currentSolvedState = digitalRead(solvedPin);
+    uint8_t altSolvedState = false;
+    if(altSolvedPin != 255) {
+        altSolvedState = digitalRead(altSolvedPin);
+    }
 
     // Determine the state based on the combination of unsolved and solved states
     if (currentUnsolvedState == 1 && currentSolvedState == 0) {
         // unsolved
         current_state = 3;
-    } else if (currentUnsolvedState == 0 && currentSolvedState == 1) {
-        // solved
-        current_state = 4;
-    } else if (currentUnsolvedState == 0 && currentSolvedState == 0) {
-        // unknown
-        current_state = 0;
-    } else if (currentUnsolvedState == 1 && currentSolvedState == 1) {
-        // extra
-        current_state = 5;
+    } else {
+        if(altSolvedPin != 255) {
+            if (currentUnsolvedState == 0 && currentSolvedState == 1 && altSolvedState == 1) {
+                current_state = 4;
+            } else if (currentUnsolvedState == 0 && currentSolvedState == 1 && altSolvedState == 0) {
+                current_state = 6;
+            } else  {
+                current_state = 0;
+            } 
+        } else {
+            if (currentUnsolvedState == 0 && currentSolvedState == 1) {
+                current_state = 4;
+            } else if (currentUnsolvedState == 0 && currentSolvedState == 0) {
+                current_state = 0;
+            } else if (currentUnsolvedState == 1 && currentSolvedState == 1) {
+                current_state = 5;
+            } 
+        }
     }
+
+   
     
-    if (currentUnsolvedState != prevPinStates[0] || currentSolvedState != prevPinStates[1]) {
-        changed = true;
-    }
-
-    // if(altSolvedPin != 255) {
-    //     uint8_t currentAltSolvedState = digitalRead(altSolvedPin);
-    //     if (currentAltSolvedState != prevPinStates[2]) {
-    //         prevPinStates[2] = currentAltSolvedState;
-    //         changed = true;
-    //         computedData |= (currentAltSolvedState << 2);  // Adjust the bit position if necessary
-    //     }
-    // }
-
-    if (changed) {
-        prevPinStates[0] = currentUnsolvedState;
-        prevPinStates[1] = currentSolvedState;
-        if (current_state == 4 /* Adjust based on your condition */) {
-            if (onSoundEffectCallback && solvedSoundEffectId >= 0) {
-                onSoundEffectCallback(solvedSoundEffectId);
+    if (current_state != prev_state) {
+        if (current_state == 3) {
+            for (auto& callback : resetCallbacks) {
+                callback();
             }
         }
 
-        if (current_state == 6 /* Adjust based on your condition */) {
-            if (onSoundEffectCallback && altSolvedSoundEffectId >= 0) {
-                onSoundEffectCallback(altSolvedSoundEffectId);
+        if (current_state == 4) {
+            for (auto& callback : solvedCallbacks) {
+                callback();
+            }
+        }
+
+        if (current_state == 6) {
+            for (auto& callback : altSolvedCallbacks) {
+                callback();
             }
         }
 
@@ -134,4 +162,6 @@ void Puzzle::checkPinChanges() {
             onPinChangeCallback(signal, current_state);
         }
     }
+
+    prev_state = current_state;
 }

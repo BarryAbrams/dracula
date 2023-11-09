@@ -2,8 +2,8 @@
 
 #include "PuzzleCommunication.h"
 
-PuzzleCommunication::PuzzleCommunication(int resetPin, int overridePin, int unsolvedPin, int solvedPin, int solvablePin)
-  : _resetPin(resetPin), _overridePin(overridePin),  _unsolvedPin(unsolvedPin), _solvedPin(solvedPin), _solvablePin(solvablePin)
+PuzzleCommunication::PuzzleCommunication(int resetPin, int overridePin, int unsolvedPin, int solvedPin, int solvablePin, int altSolvedPin)
+  : _resetPin(resetPin), _overridePin(overridePin),  _unsolvedPin(unsolvedPin), _solvedPin(solvedPin), _solvablePin(solvablePin), _altSolvedPin(altSolvedPin)
 {
 }
 
@@ -13,6 +13,11 @@ void PuzzleCommunication::begin() {
   pinMode(_unsolvedPin, OUTPUT);
   pinMode(_solvedPin, OUTPUT);
 
+  if (_altSolvedPin != 255) {
+    pinMode(_altSolvedPin, OUTPUT);
+    digitalWrite(_altSolvedPin, LOW);
+  }
+
   if (_solvablePin != 255) {
     pinMode(_solvablePin, INPUT_PULLUP);
     _solvablePinSet = true;
@@ -21,47 +26,116 @@ void PuzzleCommunication::begin() {
   setPuzzleState(false);
 }
 
+void PuzzleCommunication::setCallbacks(void (*solveCallback)(), void (*unsolveCallback)(),  bool (*isSolvedCallback)()) {
+    _solveCallback = solveCallback;
+    _unsolveCallback = unsolveCallback;
+    _isSolvedCallback = isSolvedCallback;
+}
+
+void PuzzleCommunication::setAltSolveCallback(void (*altSolveCallback)(), bool (*isAltSolvedCallback)()) {
+  _altSolveCallback = altSolveCallback;
+  _isAltSolvedCallback = isAltSolvedCallback;
+}
+
+void PuzzleCommunication::update() {
+  bool reset = debounceRead(_resetPin);
+  bool override = debounceRead(_overridePin);
+  bool solvable = getSolvable();
+
+  Serial.println(digitalRead(_altSolvedPin));
+
+
+  bool resetAction = (prevReset != reset) && reset;
+  bool overrideAction = (prevOverride != override) && override;
+
+  if (resetAction && currentState != UNSOLVED) {
+      
+      if (_altSolvedPin != 255) {
+        if (digitalRead(_altSolvedPin) == HIGH) {
+          digitalWrite(_altSolvedPin, LOW);
+          currentState = FIRSTSOLVED;
+        } else {
+          currentState = UNSOLVED;
+          setPuzzleState(false);
+        }
+      } else {
+        currentState = UNSOLVED;
+        setPuzzleState(false);
+        _unsolveCallback();
+      }
+  }
+
+  if (overrideAction && currentState != SOLVED && solvable) {
+
+      if (_altSolvedPin != 255) {
+        if (currentState == UNSOLVED) {
+          currentState = FIRSTSOLVED;
+          _solveCallback();
+          setPuzzleState(true);
+        } else if (currentState == FIRSTSOLVED) {
+          digitalWrite(_altSolvedPin, HIGH);
+          currentState = SECONDSOLVED;
+        }
+      } else {
+        currentState = SOLVED;
+        _solveCallback();
+        setPuzzleState(true);
+      }
+
+      
+      
+  }
+
+  if (prevSolvable != solvable) {
+      setPuzzleState(currentState);
+  }
+
+  bool solved = _isSolvedCallback();
+  if (currentState == UNSOLVED and solved == true and solvable) {
+      if (_altSolvedPin != 255) {
+        currentState = FIRSTSOLVED;
+      } else {
+        currentState = SOLVED;
+      }
+      setPuzzleState(true);
+      _solveCallback();
+  }
+
+  bool secondSolved = _isAltSolvedCallback();
+  if (currentState == FIRSTSOLVED and secondSolved == true and solvable) {
+      if (_altSolvedPin != 255) {
+          currentState = SECONDSOLVED;
+          digitalWrite(_altSolvedPin, HIGH);
+      } 
+  }
+
+  prevSolvable = solvable;
+  prevOverride = override;
+  prevReset = reset;
+}
+
+State PuzzleCommunication::getCurrentState() {
+  return currentState;
+}
+
 bool PuzzleCommunication::debounceRead(int pin) {
   return digitalRead(pin);
-  // Implement the debounce logic here, similar to readDebouncedInput() from your sketch
 }
 
 void PuzzleCommunication::setPuzzleState(bool solved) {
-  if (readSolvable()) {
+  if (getSolvable()) {
     digitalWrite(_unsolvedPin, !solved);
     digitalWrite(_solvedPin, solved);
   } else {
     digitalWrite(_unsolvedPin, HIGH);
     digitalWrite(_solvedPin, HIGH);
   }
-
-  // Serial.print(digitalRead(_unsolvedPin));
-  // Serial.print("-");
-  // Serial.print(digitalRead(_solvedPin));
-  // Serial.println();
 }
 
-bool PuzzleCommunication::readReset() {
-  return debounceRead(_resetPin);
-}
-
-bool PuzzleCommunication::readOverride() {
-  return debounceRead(_overridePin);
-}
-
-bool PuzzleCommunication::readSolvable() {
+bool PuzzleCommunication::getSolvable() {
   if (_solvablePinSet) {
-    // Serial.print("Solvable Pin: ");
-    // Serial.print(debounceRead(_solvablePin));
-    // Serial.println();
-    // return true;
     return debounceRead(_solvablePin);
   } else {
     return true;
   }
-  return false; // Return a default value if the solvable pin is not set
-}
-
-void PuzzleCommunication::updateOutputs() {
-  // Your logic to update the outputs based on the current state
 }
