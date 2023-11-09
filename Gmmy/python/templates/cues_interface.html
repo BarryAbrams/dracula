@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Cues Interface</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.bundle.min.js"></script>
+</head>
+<body>
+    <div class="container mt-4">
+        <h1>Cues</h1>
+        
+        <table class="table table-bordered">
+            <thead class="thead-dark">
+                <tr>
+                    <th>Type</th>
+                    <th>Name</th>
+                    <th>Pre-Wait</th>
+                    <th>Post-Wait</th>
+                    <th>Loop</th>
+                </tr>
+            </thead>
+            <tbody id="cues-table-body">
+                <!-- Cues and actions will be populated here -->
+            </tbody>
+        </table>
+
+        <h2>Create/Edit Cue</h2>
+        <form id="cue-form">
+            <div class="form-group">
+                <label for="cue-name">Cue Name</label>
+                <input type="text" class="form-control" id="cue-name" placeholder="Enter cue name">
+            </div>
+            <button type="submit" class="btn btn-success">Save Cue</button>
+        </form>
+        
+        <h2>Create/Edit Action</h2>
+        <form id="action-form">
+            <div class="form-group">
+                <label for="action-type">Type</label>
+                <select class="form-control" id="action-type">
+                    <option value="sound">Sound</option>
+                    <option value="light">Light</option>
+                </select>
+            </div>
+            <!-- Placeholder for additional sound/light fields -->
+            <div id="action-fields"></div>
+            
+            <button type="submit" class="btn btn-primary">Save Action</button>
+        </form>
+
+        <table class="table mt-5">
+            <thead class="thead-dark">
+                <tr>
+                    <th>Action Type</th>
+                    <th>Name/Animation</th>
+                    <th>Pre-Wait</th>
+                    <th>Post-Wait</th>
+                    <th>Loop</th>
+                    <th>Operations</th>
+                </tr>
+            </thead>
+            <tbody id="cues-table-body">
+                <!-- Cues and actions will be populated here -->
+            </tbody>
+        </table>
+
+        <!-- The rest of your page's content goes here -->
+    </div>
+
+
+    <script>
+         $(document).ready(function() {
+            function loadCues() {
+                $.ajax({
+                    url: '/cues',
+                    type: 'GET',
+                    dataType: 'json',
+                    success: function(data) {
+                        var tableBody = $('#cues-table-body');
+                        tableBody.empty(); // Clear existing rows
+
+                        data.forEach(function(cue) {
+                            // Add cue name row
+                            var cueRow = $('<tr>').append($('<td>').text(cue.name).attr('colspan', 6));
+                            tableBody.append(cueRow);
+
+                            // Add actions rows
+                            cue.actions.forEach(function(action) {
+                                var actionRow = $('<tr>').append(
+                                    $('<td>').text(action.type),
+                                    $('<td>').text(action.sound || action.animation),
+                                    $('<td>').text(action.pre_wait),
+                                    $('<td>').text(action.post_wait),
+                                    $('<td>').text(action.loop)
+                                );
+                                // Click event to edit action
+                                actionRow.click(function() {
+                                    // Implement opening the edit form here
+                                    // You can use action.id to identify which action is being edited
+                                });
+                                tableBody.append(actionRow);
+                            });
+                        });
+                    }
+                });
+            }
+
+            loadCues();
+
+            var sounds = [];
+            var lights = [];
+            var animations = [];
+
+            // Load sounds and lights for dropdowns
+            function loadSoundsAndLights() {
+                // Replace with actual AJAX requests to get the data
+                sounds = [{ "name": "Gunshot", "id": 1 }, { "name": "Lightning", "id": 2 }, { "name": "Vampire", "id": 3 }];
+                lights = [{ "id": 0, "name": "Lobby Wash" }, { "id": 1, "name": "Big Spot" }, { "id": 2, "name": "Outside Wash" }];
+                animations = [{ "id": "lightning", "name": "Lightning" }];
+            }
+
+            function populateActionFields(type) {
+                var fieldsDiv = $('#action-fields');
+                fieldsDiv.empty(); // Clear existing fields
+                
+                if (type === 'sound') {
+                    var soundDropdown = $('<select>').addClass('form-control').attr('id', 'sound-name');
+                    sounds.forEach(function(sound) {
+                        soundDropdown.append($('<option>').val(sound.id).text(sound.name));
+                    });
+                    fieldsDiv.append($('<div>').addClass('form-group').append(
+                        $('<label>').attr('for', 'sound-name').text('Sound Name'),
+                        soundDropdown
+                    ));
+                } else {
+                    var lightDropdown = $('<select>').addClass('form-control').attr('id', 'light-name');
+                    lights.forEach(function(light) {
+                        lightDropdown.append($('<option>').val(light.id).text(light.name));
+                    });
+                    var animationDropdown = $('<select>').addClass('form-control').attr('id', 'animation-name');
+                    animations.forEach(function(animation) {
+                        animationDropdown.append($('<option>').val(animation.id).text(animation.name));
+                    });
+                    fieldsDiv.append(
+                        $('<div>').addClass('form-group').append(
+                            $('<label>').attr('for', 'light-name').text('Light Name'),
+                            lightDropdown
+                        ),
+                        $('<div>').addClass('form-group').append(
+                            $('<label>').attr('for', 'animation-name').text('Animation Name'),
+                            animationDropdown
+                        )
+                    );
+                }
+                
+                // Additional common fields for both sound and light
+                fieldsDiv.append(
+                    $('<div>').addClass('form-group').append(
+                        $('<label>').attr('for', 'pre-wait').text('Pre-Wait'),
+                        $('<input>').addClass('form-control').attr('id', 'pre-wait').attr('type', 'number')
+                    ),
+                    $('<div>').addClass('form-group').append(
+                        $('<label>').attr('for', 'post-wait').text('Post-Wait'),
+                        $('<input>').addClass('form-control').attr('id', 'post-wait').attr('type', 'number')
+                    ),
+                    $('<div>').addClass('form-group').append(
+                        $('<label>').attr('for', 'loop').text('Loop'),
+                        $('<input>').addClass('form-control').attr('id', 'loop').attr('type', 'checkbox')
+                    )
+                );
+            }
+
+            $('#action-type').change(function() {
+                populateActionFields($(this).val());
+            });
+
+            loadSoundsAndLights();
+            populateActionFields('sound'); // Load sound fields by default
+
+        });
+    </script>
+</body>
+</html>

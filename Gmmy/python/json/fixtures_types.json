@@ -1,0 +1,17 @@
+[
+    {
+        "id":0,
+        "name":"Cob Par",
+        "channels":["r","g","b","a","w"]
+    },
+    {
+        "id":1,
+        "name":"Spotlight",
+        "channels":["r","g","b"]
+    },
+    {
+        "id":2,
+        "name":"Slim Par",
+        "channels":["r","g","b","w"]
+    }
+]

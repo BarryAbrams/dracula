@@ -1,0 +1,20 @@
+[
+    {
+        "id":0,
+        "name":"Lobby Wash",
+        "type":"Cob Par",
+        "address":1
+    },
+    {
+        "id":1,
+        "name":"Big Spot",
+        "type":"Spotlight",
+        "address":8
+    },
+    {
+        "id":2,
+        "name":"Outside Wash",
+        "type":"Cob Par",
+        "address":12
+    }
+]

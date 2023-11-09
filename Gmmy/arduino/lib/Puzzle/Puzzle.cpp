@@ -3,25 +3,51 @@
 #include "Puzzle.h"
 
 Puzzle::Puzzle(const char* name, 
-               const uint8_t pins_in[3], 
-               const uint8_t pins_out[3],
+               uint8_t resetPin, 
+               uint8_t overridePin, 
+               uint8_t unsolvedPin, 
+               uint8_t solvedPin, 
+               uint8_t altSolvedPin, 
+               uint8_t solvablePin,
                MessageSignal signal,
-               MessageData current_state) :
-    name(name), signal(signal), current_state(current_state) {
-    for (int i = 0; i < 3; i++) {
-        this->pins_in[i] = pins_in[i];
-        this->pins_out[i] = pins_out[i];
+               MessageData current_state,
+               MessageSignal dependantPuzzle,
+               int solvedSoundEffectId,
+               int altSolvedSoundEffectId) :
+    name(name), 
+    resetPin(resetPin), 
+    overridePin(overridePin), 
+    unsolvedPin(unsolvedPin), 
+    solvedPin(solvedPin), 
+    altSolvedPin(altSolvedPin), 
+    solvablePin(solvablePin), 
+    signal(signal), 
+    current_state(current_state), 
+    dependantPuzzle(dependantPuzzle),
+    solvedSoundEffectId(solvedSoundEffectId),
+    altSolvedSoundEffectId(altSolvedSoundEffectId) {
+    // Initialize previous pin states to a known state, e.g., LOW
+    for (int i = 0; i < 5; ++i) {
+        prevPinStates[i] = LOW;
     }
 }
 
 void Puzzle::setup() {
-    for(int i = 0; i < 3; i++) {
-        if(pins_in[i] != 255) {
-            pinMode(pins_in[i], INPUT);
-        }
-        if(pins_out[i] != 255) {
-            pinMode(pins_out[i], OUTPUT);
-        }
+    pinMode(resetPin, OUTPUT);
+    pinMode(overridePin, OUTPUT);
+    pinMode(unsolvedPin, INPUT_PULLUP);
+    pinMode(solvedPin, INPUT_PULLUP);
+
+
+    if(solvablePin != 255) {
+        pinMode(solvablePin, OUTPUT);
+    }
+
+    prevPinStates[0] = digitalRead(unsolvedPin);
+    prevPinStates[1] = digitalRead(solvedPin);
+    if(altSolvedPin != 255) {
+        pinMode(altSolvedPin, INPUT_PULLUP);
+        prevPinStates[2] = digitalRead(altSolvedPin);
     }
 }
 
@@ -29,58 +55,83 @@ MessageData Puzzle::getCurrentState() const {
     return current_state;
 }
 
+MessageSignal Puzzle::getSignal() const {
+    return signal;
+}
+
+MessageSignal Puzzle::getDependantPuzzle() const {
+    return dependantPuzzle;
+}
+
 void Puzzle::setState(MessageData newState) {
-    for(int i = 0; i < 3; i++) {
-        if(pins_out[i] != 255) {
-            digitalWrite(pins_out[i], (newState & (1 << i)) ? HIGH : LOW);
-        }
+    digitalWrite(resetPin, (newState & 1) ? HIGH : LOW);
+    digitalWrite(overridePin, (newState & 2) ? HIGH : LOW);
+}
+
+bool Puzzle::getSolvable() {
+    if(solvablePin != 255) {
+        return digitalRead(solvablePin);
+    } else {
+        return true;
     }
+}
+
+void Puzzle::setSolvable(bool state) {
+    digitalWrite(solvablePin, state);
 }
 
 void Puzzle::checkPinChanges() {
     MessageData computedData = 0;  // Initialize with some default value
     bool changed = false;
-    for(int i = 0; i < 3; i++) {
-        uint8_t currentState = digitalRead(pins_in[i]);
-        if (currentState != prevPinStates[i]) {
-            // Serial.print("Pin ");       // Print which pin changed
-            // Serial.print(pins_in[i], DEC);
-            // Serial.print(" changed to: ");
-            // Serial.println(currentState, DEC);  // Print new state
-            
-            prevPinStates[i] = currentState;
-            changed = true;
 
-            computedData |= (currentState << i); // This is just an example. Adjust based on your needs.
-        }
+    uint8_t currentUnsolvedState = digitalRead(unsolvedPin);
+    uint8_t currentSolvedState = digitalRead(solvedPin);
+
+    // Determine the state based on the combination of unsolved and solved states
+    if (currentUnsolvedState == 1 && currentSolvedState == 0) {
+        // unsolved
+        current_state = 3;
+    } else if (currentUnsolvedState == 0 && currentSolvedState == 1) {
+        // solved
+        current_state = 4;
+    } else if (currentUnsolvedState == 0 && currentSolvedState == 0) {
+        // unknown
+        current_state = 0;
+    } else if (currentUnsolvedState == 1 && currentSolvedState == 1) {
+        // extra
+        current_state = 5;
     }
     
+    if (currentUnsolvedState != prevPinStates[0] || currentSolvedState != prevPinStates[1]) {
+        changed = true;
+    }
+
+    // if(altSolvedPin != 255) {
+    //     uint8_t currentAltSolvedState = digitalRead(altSolvedPin);
+    //     if (currentAltSolvedState != prevPinStates[2]) {
+    //         prevPinStates[2] = currentAltSolvedState;
+    //         changed = true;
+    //         computedData |= (currentAltSolvedState << 2);  // Adjust the bit position if necessary
+    //     }
+    // }
+
     if (changed) {
-        current_state = computedData;
-        // Serial.print("Computed data: ");
-        for(int i = 0; i < 3; i++) {
-            if(pins_out[i] != 255) {
-                digitalWrite(pins_out[i], LOW);
+        prevPinStates[0] = currentUnsolvedState;
+        prevPinStates[1] = currentSolvedState;
+        if (current_state == 4 /* Adjust based on your condition */) {
+            if (onSoundEffectCallback && solvedSoundEffectId >= 0) {
+                onSoundEffectCallback(solvedSoundEffectId);
             }
-        } 
-        // if (computedData == 0) {
-        //     Serial.println("NoData");
-        // } else if (computedData == 1) {
-        //     Serial.println("Override");
-        // } else if (computedData == 2) {
-        //     Serial.println("Reset");
-        // } else if (computedData == 3) {
-        //     Serial.println("Unsolved");
-        // } else if (computedData == 4) {
-        //     Serial.println("Solved");
-        // } else if (computedData == 5) {
-        //     Serial.println("Extra");
-        // } else {
-        //     Serial.println("Unknown value");
-        // }
+        }
+
+        if (current_state == 6 /* Adjust based on your condition */) {
+            if (onSoundEffectCallback && altSolvedSoundEffectId >= 0) {
+                onSoundEffectCallback(altSolvedSoundEffectId);
+            }
+        }
 
         if (onPinChangeCallback) {
-            onPinChangeCallback(signal, computedData);
+            onPinChangeCallback(signal, current_state);
         }
     }
 }

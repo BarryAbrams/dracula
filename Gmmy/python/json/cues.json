@@ -1,0 +1,30 @@
+[
+    {
+    "name":"Lightning Crack",
+    "actions": [
+        {
+            "id": 1,
+            "type": "sound",
+            "sound": "Lightning",
+            "pre_wait": 0,
+            "post_wait": 0.5,
+            "auto_continue": true,
+            "auto_follow": false,
+            "loop": "infinite"
+        },
+        {
+            "id": 2,
+            "type": "light",
+            "fixtures": ["Lobby Wash", "Outside Wash"],
+            "animation": "lightning",
+            "animation_duration":3000,
+            "pre_wait": 0.0,
+            "post_wait": 2.0,
+            "auto_continue": false,
+            "auto_follow": false,
+            "loop": 1
+        }
+    ]
+    }
+    
+]

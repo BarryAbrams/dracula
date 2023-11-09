@@ -1,7 +1,10 @@
 {
 	"folders": [
 		{
-			"path": "."
+			"path": "Gmmy/arduino"
+		},
+		{
+			"path": "Gmmy/python"
 		}
 	],
 	"settings": {}

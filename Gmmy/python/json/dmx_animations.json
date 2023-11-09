@@ -1,0 +1,32 @@
+[
+    {
+    "id":"lightning",
+    "steps": [
+        {
+            "timeline":0,
+            "color":"#000000",
+            "brightness":0
+        },
+        {
+            "timeline":0.2,
+            "color":"#ffffff",
+            "brightness":255
+        },
+        {
+            "timeline":0.3,
+            "color":"#000000",
+            "brightness":0
+        },
+        {
+            "timeline":0.5,
+            "color":"#ffffff",
+            "brightness":128
+        },
+        {
+            "timeline":1,
+            "color":"#000000",
+            "brightness":0
+        }
+    ]
+    }   
+]

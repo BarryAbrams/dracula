@@ -1,0 +1,14 @@
+[
+    {
+        "name":"Gunshot",
+        "id":1
+    },
+    {
+        "name":"Lightning",
+        "id":2
+    },
+    {
+        "name":"Vampire",
+        "id":3
+    }
+]
