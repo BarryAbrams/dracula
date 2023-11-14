@@ -1,0 +1,54 @@
+[
+    {
+        "types":[
+        {
+            "id":"SR",
+            "channels":[
+                "BRIGHTNESS", "R", "G", "B", "W", "STROBE", "MACRO", "MACRO_SPEED"
+            ]
+        },
+        {
+            "id":"T12",
+            "channels":[
+                "R", "G", "B", "STROBE", "MACRO", "MACRO_SPEED", "BRIGHTNESS"
+            ]
+        },
+        {
+            "id":"COB",
+            "channels":[ 
+                "BRIGHTNESS", "R", "G", "B", "STROBE", "MACRO", "MACRO_SPEED"
+            ]
+        }
+    ]
+    },
+    {
+        "lights": [
+            {
+                "id":"forest_wash",
+                "type":"SR",
+                "address":1
+            },
+            {
+                "id":"castle_wash",
+                "type":"T12",
+                "address":9
+            },
+            {
+                "id":"stairs_wash",
+                "type":"COB",
+                "address":16
+            },
+            {
+                "id":"above_crypt",
+                "type":"COB",
+                "address":23
+            },
+            {
+                "id":"below_crypt",
+                "type":"COB",
+                "address":30
+            }
+        ]
+    }
+
+]
