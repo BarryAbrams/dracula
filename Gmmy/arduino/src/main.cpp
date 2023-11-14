@@ -90,26 +90,26 @@ void updateRelay(RELAY relay, bool state) {
 }
 
 Puzzle puzzles[] = {
-    // Puzzle("hallway", 
-    //     A1,A0,A2,A3,A4,255, 
-    //     Puzzle5, NoData, NONE, 
-    //     {resetCallback, [](){ updateRelay(HALLWAY_DOOR, LOW); }}, 
-    //     {solvedCallback, [](){ playSound(HEAVY_SWITCH); }, [](){ updateRelay(HALLWAY_DOOR, HIGH); }}, 
-    //     {altSolvedCallback, [](){ playSound(PRESSURE_PLATE); }}),
-    // Puzzle("cryptex", 
-    //     5,4,6,7,255,255, 
-    //     Puzzle7, NoData, NONE, 
-    //     {resetCallback, [](){ updateRelay(ROTATING_DOOR, LOW); }}, 
-    //     {solvedCallback, [](){ playSound(MACHINERY); }, [](){ updateRelay(ROTATING_DOOR, HIGH); }}, 
-    //     {altSolvedCallback}
-    // ),
-    Puzzle("sample", 
-        8,9,10,11,255,255, 
-        Puzzle1, NoData, NONE, 
+    Puzzle("hallway", 
+        A1,A0,A2,A3,A4,255, 
+        Puzzle5, NoData, NONE, 
+        {resetCallback, [](){ updateRelay(HALLWAY_DOOR, LOW); }}, 
+        {solvedCallback, [](){ playSound(HEAVY_SWITCH); }, [](){ updateRelay(HALLWAY_DOOR, HIGH); }}, 
+        {altSolvedCallback, [](){ playSound(PRESSURE_PLATE); }}),
+    Puzzle("cryptex", 
+        5,4,6,7,255,255, 
+        Puzzle7, NoData, NONE, 
         {resetCallback, [](){ updateRelay(ROTATING_DOOR, LOW); }}, 
         {solvedCallback, [](){ playSound(MACHINERY); }, [](){ updateRelay(ROTATING_DOOR, HIGH); }}, 
         {altSolvedCallback}
     ),
+    // Puzzle("sample", 
+    //     8,9,10,11,255,255, 
+    //     Puzzle1, NoData, NONE, 
+    //     {resetCallback, [](){ updateRelay(ROTATING_DOOR, LOW); }}, 
+    //     {solvedCallback, [](){ playSound(MACHINERY); }, [](){ updateRelay(ROTATING_DOOR, HIGH); }}, 
+    //     {altSolvedCallback}
+    // ),
     // Puzzle("lights", 
     //     4,5,6,7,255,255, 
     //     Puzzle9, NoData, NONE, 
@@ -181,12 +181,22 @@ void handle_message(MessageSignal sig, MessageData data) {
     }
 
     if (sig <= 9) {
-        if (data == Override) {
-            puzzles[sig].startPulse(Override);
+        int index = -1;
+        for (size_t i = 0; i < sizeof(puzzles) / sizeof(puzzles[0]); i++) {
+            if (puzzles[i].getSignal() == sig) {
+                index = i;
+            }
         }
-         if (data == Reset) {
-            puzzles[sig].startPulse(Reset);
+
+        if (index > -1) {
+            if (data == Override) {
+                puzzles[index].startPulse(Override);
+            }
+            if (data == Reset) {
+                puzzles[index].startPulse(Reset);
+            }
         }
+        
     }
 }
 

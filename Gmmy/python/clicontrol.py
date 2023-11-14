@@ -115,10 +115,11 @@ class CLIControl(threading.Thread):
                     selected_puzzle = self.puzzles[selected_puzzle_index]['name']
                     selected_action = 'R' if self.puzzles_selected % 2 == 0 else 'O'
 
+               
                     if selected_action == 'R':
-                        self.resetPuzzle(selected_puzzle_index)
+                        self.resetPuzzle(self.puzzles[selected_puzzle_index]['signal'])
                     elif selected_action == 'O':
-                        self.overridePuzzle(selected_puzzle_index)
+                        self.overridePuzzle(self.puzzles[selected_puzzle_index]['signal'])
 
         curses.endwin()
 
@@ -219,16 +220,16 @@ class CLIControl(threading.Thread):
         elif cmd == "exit":
             self.running = False
 
-    def resetPuzzle(self, selected_puzzle_index):
-        selected_puzzle = self.puzzles[selected_puzzle_index]['name']
-        # self.log("Reset: " + selected_puzzle)
-        self.mega.send_message(selected_puzzle_index, 2)
+    def resetPuzzle(self, signal):
+        # selected_puzzle = self.puzzles[selected_puzzle_index]['name']
+        self.log("Reset: " + str(signal))
+        self.mega.send_message(signal, 2)
         pass
 
-    def overridePuzzle(self, selected_puzzle_index):
-        selected_puzzle = self.puzzles[selected_puzzle_index]['name']
-        # self.log("Override: " + selected_puzzle)
-        self.mega.send_message(selected_puzzle_index, 1)
+    def overridePuzzle(self, signal):
+        # selected_puzzle = self.puzzles[selected_puzzle_index]['name']
+        self.log("Override: " + str(signal))
+        self.mega.send_message(signal, 1)
         pass
 
     def log(self, message):
