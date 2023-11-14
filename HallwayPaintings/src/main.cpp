@@ -1,18 +1,27 @@
+#include <Wire.h>
+#include <Tlv493d.h>
+
 #include <FastLED.h>
 #include "PuzzleCommunication.h"
 
-
 #define NUM_LEDS 1
 #define DATA_PIN 17
-#define SOLVED_1_PIN 5
-#define SOLVED_2_PIN 7
-#define SOLVED_TIMEOUT 250
+#define SOLVED_TIMEOUT 1000
 
-#define RESET_PIN A0
-#define OVERRIDE_PIN 9
-#define UNSOLVED_PIN A1
-#define SOLVED_PIN A2
-#define ALT_SOLVED_PIN A3
+#define TCA9548_ADDRESS 0x70
+#define NUM_SENSORS 6
+
+Tlv493d Tlv493dMagnetic3DSensors[NUM_SENSORS];
+const uint8_t sensorOrder[NUM_SENSORS] = {0,1,2,3,4,5};  // Adjust based on your setup
+int sensorsValues[NUM_SENSORS] = {0};
+int currentSensor = 0;
+
+
+#define RESET_PIN A3
+#define OVERRIDE_PIN A4
+#define UNSOLVED_PIN A2
+#define SOLVED_PIN A1
+#define ALT_SOLVED_PIN A0
 
 PuzzleCommunication puzzleComm(RESET_PIN, OVERRIDE_PIN, UNSOLVED_PIN, SOLVED_PIN, 255, ALT_SOLVED_PIN);
 
@@ -92,8 +101,15 @@ bool checkIsSolved() {
   static unsigned long firstSolvedMillis = 0;
   static bool lastReading = false;
 
-  bool currentReading = !digitalRead(SOLVED_1_PIN);
+  bool currentReading = true;
+  for (int i = 0; i < NUM_SENSORS; i++) {
+      if (sensorsValues[i] != 1) {
+          currentReading = false;
+          break;
+      }
+  }
 
+    
   if (currentReading) {
     if (!lastReading) {
       firstSolvedMillis = millis();
@@ -112,7 +128,13 @@ bool checkIsAltSolved() {
   static unsigned long firstSolvedMillis = 0;
   static bool lastReading = false;
 
-  bool currentReading = !digitalRead(SOLVED_2_PIN);
+  bool currentReading = true;
+    for (int i = 0; i < NUM_SENSORS; i++) {
+        if (sensorsValues[i] != -1) {
+            currentReading = false;
+            break;
+        }
+    }
 
   if (currentReading) {
     if (!lastReading) {
@@ -140,19 +162,65 @@ void unsolve() {
     animationState = NONE;
 }
 
+int calculateValue(float incomingValue) {
+  int zStatus = 0;
+   if (incomingValue < - 0.3) {
+    zStatus = -1;
+  } else if (incomingValue > 0.3) {
+    zStatus = 1;
+  }
+
+  return zStatus;
+}
+
+void tcaSelect(uint8_t channel) {
+  if (channel > 7) return;
+  Wire.beginTransmission(TCA9548_ADDRESS);
+  Wire.write(1 << channel);
+  Wire.endTransmission();
+}
+
+void updateSensors() {
+  for (int i = 0; i < NUM_SENSORS; i++) {
+    tcaSelect(sensorOrder[i]);
+    Tlv493dMagnetic3DSensors[i].updateData();
+    float zValue = Tlv493dMagnetic3DSensors[i].getZ();
+    int sensorValue = calculateValue(zValue);
+    sensorsValues[i] = sensorValue;
+  }
+}
+
 void setup() {
+  Wire.begin();
   Serial.begin(9600);
   FastLED.addLeds<NEOPIXEL, DATA_PIN>(leds, NUM_LEDS);
   puzzleComm.begin();
   puzzleComm.setCallbacks(solve, unsolve, checkIsSolved);
   puzzleComm.setAltSolveCallback(altSolve, checkIsAltSolved);
-  pinMode(SOLVED_1_PIN, INPUT_PULLUP);
-  pinMode(SOLVED_2_PIN, INPUT_PULLUP);
+
+  Serial.println("TEST");
+  for (int i = 0; i < NUM_SENSORS; i++) {
+    tcaSelect(i);
+    Tlv493dMagnetic3DSensors[i].begin();
+    Tlv493dMagnetic3DSensors[i].setAccessMode(Tlv493dMagnetic3DSensors[i].MASTERCONTROLLEDMODE);
+    Tlv493dMagnetic3DSensors[i].disableTemp();
+  }
 }
 
 void loop() {
 
+
+  updateSensors();
+
+  for (int i =0; i<NUM_SENSORS; i++) {
+    Serial.print(sensorsValues[i]);
+  }
+
+  Serial.println();
+
   puzzleComm.update();
+
+  Serial.println(puzzleComm.getCurrentState());
 
   if (puzzleComm.getCurrentState() == UNSOLVED) {
       setAllLeds(CRGB::Black);

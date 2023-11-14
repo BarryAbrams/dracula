@@ -35,6 +35,7 @@ void PuzzleCommunication::setCallbacks(void (*solveCallback)(), void (*unsolveCa
 void PuzzleCommunication::setAltSolveCallback(void (*altSolveCallback)(), bool (*isAltSolvedCallback)()) {
   _altSolveCallback = altSolveCallback;
   _isAltSolvedCallback = isAltSolvedCallback;
+  _altCallbackSet = true;
 }
 
 void PuzzleCommunication::update() {
@@ -42,7 +43,7 @@ void PuzzleCommunication::update() {
   bool override = debounceRead(_overridePin);
   bool solvable = getSolvable();
 
-  Serial.println(digitalRead(_altSolvedPin));
+  // // Serial.println(digitalRead(_altSolvedPin));
 
 
   bool resetAction = (prevReset != reset) && reset;
@@ -64,6 +65,8 @@ void PuzzleCommunication::update() {
         _unsolveCallback();
       }
   }
+
+
 
   if (overrideAction && currentState != SOLVED && solvable) {
 
@@ -90,6 +93,7 @@ void PuzzleCommunication::update() {
       setPuzzleState(currentState);
   }
 
+
   bool solved = _isSolvedCallback();
   if (currentState == UNSOLVED and solved == true and solvable) {
       if (_altSolvedPin != 255) {
@@ -101,6 +105,7 @@ void PuzzleCommunication::update() {
       _solveCallback();
   }
 
+  if (_altCallbackSet) {
   bool secondSolved = _isAltSolvedCallback();
   if (currentState == FIRSTSOLVED and secondSolved == true and solvable) {
       if (_altSolvedPin != 255) {
@@ -108,6 +113,8 @@ void PuzzleCommunication::update() {
           digitalWrite(_altSolvedPin, HIGH);
       } 
   }
+  }
+
 
   prevSolvable = solvable;
   prevOverride = override;
@@ -133,7 +140,7 @@ void PuzzleCommunication::setPuzzleState(bool solved) {
 }
 
 bool PuzzleCommunication::getSolvable() {
-  if (_solvablePinSet) {
+  if (_solvablePin != 255) {
     return debounceRead(_solvablePin);
   } else {
     return true;

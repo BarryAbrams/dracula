@@ -6,20 +6,16 @@
 #define TCA9548_ADDRESS 0x70
 #define NUM_SENSORS 5
 #define NEOPIXEL_PIN 5
+#define SOLVED_TIMEOUT 1000
 
 #define NUM_LEDS 5
 #define DATA_PIN 5
 
 Tlv493d Tlv493dMagnetic3DSensors[NUM_SENSORS];
 const uint8_t sensorOrder[NUM_SENSORS] = {0, 1, 2, 3, 4};  // Adjust based on your setup
-int currentLed = 0; // Track which LED we're animating
+int sensorsValues[NUM_SENSORS] = {0};
 
 CRGB leds[NUM_LEDS];
-
-enum State {
-  UNSOLVED,
-  SOLVED
-};
 
 enum AnimationState {
   NONE,
@@ -27,8 +23,7 @@ enum AnimationState {
   SOLVED_STAGGER_TO_GREEN, // stagger each green one on one at a time
   SOLVED_HOLD // stay on green
 };
-
-State currentState = UNSOLVED;
+int currentLed = 0; // Track which LED we're animating
 AnimationState animationState = NONE;
 
 unsigned long previousMillis = 0;
@@ -38,7 +33,15 @@ const int breathingInterval = 6000; // Breathing effect over 6 seconds
 const int fadeToGreenInterval = 2000;
 int currentBrightness;
 // Initialize the PuzzleCommunication with the required pins.
-PuzzleCommunication puzzleComm(A2,A3,A0,A1);
+
+#define RESET_PIN A3
+#define OVERRIDE_PIN A2
+#define UNSOLVED_PIN A1
+#define SOLVED_PIN A0
+
+PuzzleCommunication puzzleComm(RESET_PIN, OVERRIDE_PIN, UNSOLVED_PIN, SOLVED_PIN, 255, 255);
+
+
 int fadeToWhiteInterval = 250; // Duration of the fade to white
 
 void setAllLeds(CRGB color) {
@@ -88,33 +91,16 @@ void holdOnGreen() {
   // Keep all LEDs on green, nothing changes in this state
 }
 
-void runSolvedAnimation() {
-  switch (animationState) {
-    case SOLVED_START:
-      fadeAllToFullWhite();
-      break;
-    case SOLVED_STAGGER_TO_GREEN:
-      staggerToGreen();
-      break;
-    case SOLVED_HOLD:
-      holdOnGreen(); // Nothing needs to be done in this case
-      break;
-    default:
-      // If for some reason the state is NONE or any undefined state,
-      // you might want to reset to a known state
-      break;
-  }
-}
 
 int calculateValue(float incomingValue) {
   int zStatus = 0;
-  if (incomingValue < -0.3) {
+   if (incomingValue < - 0.3) {
     zStatus = -1;
   } else if (incomingValue > 0.3) {
     zStatus = 1;
   }
 
-  return -(incomingValue * 10);
+  return zStatus;
 }
 
 void tcaSelect(uint8_t channel) {
@@ -124,87 +110,103 @@ void tcaSelect(uint8_t channel) {
   Wire.endTransmission();
 }
 
+void updateSensors() {
+  for (int i = 0; i < NUM_SENSORS; i++) {
+    tcaSelect(sensorOrder[i]);
+    Tlv493dMagnetic3DSensors[i].updateData();
+    float zValue = Tlv493dMagnetic3DSensors[i].getZ();
+    int sensorValue = calculateValue(zValue);
+    sensorsValues[i] = sensorValue;
+  }
+}
+
+
+bool checkIsSolved() {
+  static unsigned long firstSolvedMillis = 0;
+  static bool lastReading = false;
+
+  bool currentReading = true;
+  for (int i = 0; i < NUM_SENSORS; i++) {
+      if (sensorsValues[i] != 1) {
+          currentReading = false;
+          break;
+      }
+  }
+
+  if (currentReading) {
+    if (!lastReading) {
+      firstSolvedMillis = millis();
+    } else if (millis() - firstSolvedMillis >= SOLVED_TIMEOUT) {
+      return true;
+    }
+  } else {
+    firstSolvedMillis = 0;
+  }
+
+  lastReading = currentReading;
+  return false;
+}
+
+
+void solve() {
+    animationState = SOLVED_START;
+}
+
+void unsolve() {
+    animationState = NONE;
+}
+
 void setup() {
   Wire.begin();
   Serial.begin(9600);
   FastLED.addLeds<NEOPIXEL, DATA_PIN>(leds, NUM_LEDS);
   puzzleComm.begin();
+  puzzleComm.setCallbacks(solve, unsolve, checkIsSolved);
 
   for (int i = 0; i < NUM_SENSORS; i++) {
     tcaSelect(i);
     Tlv493dMagnetic3DSensors[i].begin();
+    Tlv493dMagnetic3DSensors[i].setAccessMode(Tlv493dMagnetic3DSensors[i].MASTERCONTROLLEDMODE);
+    Tlv493dMagnetic3DSensors[i].disableTemp();
   }
-}
-
-bool isSolved() {
-   bool allSensorsNegative = true; // Assume all sensors are negative until proven otherwise
-   for (int i = 0; i < NUM_SENSORS; i++) {
-    tcaSelect(sensorOrder[i]);
-    Tlv493dMagnetic3DSensors[i].updateData();
-
-    float zValue = Tlv493dMagnetic3DSensors[i].getZ();
-    int sensorValue = calculateValue(zValue);
-    
-    if (sensorValue >= 0) {
-      allSensorsNegative = false;
-    }
-   }
-
-   return allSensorsNegative;
 }
 
 void loop() {
-  // Read the puzzle states from the communication pins
-  bool reset = puzzleComm.readReset();
-  bool override = puzzleComm.readOverride();
-  
-  // Check for reset condition
-  if (reset) {
-    currentState = UNSOLVED;
-    animationState = NONE;
-    puzzleComm.setPuzzleState(false); // Update output state to UNSOLVED
-    Serial.println("Puzzle state reset to UNSOLVED.");
+
+  updateSensors();
+
+  for (int i =0; i<NUM_SENSORS; i++) {
+    Serial.print(sensorsValues[i]);
   }
 
-  // Override logic: if override is true, solve the puzzle
-  if (override) {
-    currentState = SOLVED;
-    animationState = SOLVED_START;
-    previousMillis = millis();
-    puzzleComm.setPuzzleState(true); // Update output state to SOLVED
-    Serial.println("Puzzle overridden to SOLVED.");
-  }
+  Serial.println();
 
-  // Main puzzle logic: magnetic switch checking
-  bool reading = isSolved();
-  if (currentState == UNSOLVED and reading == true) {
-    if (solvedTime == 0) {
-      solvedTime = millis();
-    } else if ((millis() - solvedTime) >= stableDelay) {
-      currentState = SOLVED;
-      animationState = SOLVED_START;
-      puzzleComm.setPuzzleState(true); // Update output state to SOLVED
-      solvedTime = 0; 
-      previousMillis = millis();
-      Serial.println("Puzzle solved by correct combo.");
+  puzzleComm.update();
+  Serial.println(puzzleComm.getCurrentState());
+
+  if (puzzleComm.getCurrentState() == UNSOLVED) {
+        // setAllLeds(CRGB::Black);
+        breatheWhite();
+    } else if (puzzleComm.getCurrentState() == SOLVED) {
+      switch (animationState) {
+        case SOLVED_START:
+          fadeAllToFullWhite();
+          break;
+        case SOLVED_STAGGER_TO_GREEN:
+          staggerToGreen();
+          break;
+        case SOLVED_HOLD:
+          holdOnGreen(); // Nothing needs to be done in this case
+          break;
+        default:
+          // If for some reason the state is NONE or any undefined state,
+          // you might want to reset to a known state
+          break;
+      }
     }
-  } else if (reading == HIGH) {
-    solvedTime = 0; // Reset the switch closed timer if the magnet is not detected
-  }
-
-  // Execute the breathing or solved animation based on the current state
-  if (currentState == UNSOLVED) {
-    breatheWhite();
-  } else if (currentState == SOLVED) {
-    runSolvedAnimation();
-
-  }
 
   // Update the LEDs
   FastLED.show();
-
-  // Update the output state to reflect the current state
-  puzzleComm.updateOutputs();
 
   delay(10);
 }

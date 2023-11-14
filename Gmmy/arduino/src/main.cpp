@@ -7,11 +7,11 @@
 
 enum SFX {
   NONE = -1, // to represent no sound or error
-  EXPLOSION = 1, // 1-1
+  WAHHAHA = 1, // 1-1
   GUNSHOT, // 1-2
   SCREAM, // 1-3
   CAR_HORN, // 1-4
-  SFX_5,  // 1-5
+  MACHINERY,  // 1-5
   SFX_6,  // 1-6
   SFX_7,  // 1-7
   SFX_8,  // 1-8
@@ -19,10 +19,10 @@ enum SFX {
   SFX_10, // 1-10
   SFX_11, // 1-11
   SFX_12, // 1-12
-  SFX_13, // 1-13
+  HEAVY_SWITCH, // 1-13
   SFX_14, // 1-14
   SFX_15, // 1-15
-  SFX_16 = 16, // 2-1
+  PRESSURE_PLATE = 16, // 2-1
   SFX_17, // 2-2
   SFX_18, // 2-3
   SFX_19, // 2-4
@@ -90,26 +90,39 @@ void updateRelay(RELAY relay, bool state) {
 }
 
 Puzzle puzzles[] = {
-    Puzzle("hallway", 
-        A0,A1,A2,A3,A4,255, 
-        Puzzle5, NoData, NONE, 
-        {resetCallback, [](){ updateRelay(HALLWAY_DOOR, LOW); }}, 
-        {solvedCallback, [](){ playSound(SFX_13); }, [](){ updateRelay(HALLWAY_DOOR, HIGH); }}, 
-        {altSolvedCallback, [](){ playSound(SFX_16); }}),
-
-    Puzzle("lights", 
-        4,5,6,7,255,255, 
-        Puzzle9, NoData, NONE, 
-        {resetCallback}, 
-        {solvedCallback}, 
+    // Puzzle("hallway", 
+    //     A1,A0,A2,A3,A4,255, 
+    //     Puzzle5, NoData, NONE, 
+    //     {resetCallback, [](){ updateRelay(HALLWAY_DOOR, LOW); }}, 
+    //     {solvedCallback, [](){ playSound(HEAVY_SWITCH); }, [](){ updateRelay(HALLWAY_DOOR, HIGH); }}, 
+    //     {altSolvedCallback, [](){ playSound(PRESSURE_PLATE); }}),
+    // Puzzle("cryptex", 
+    //     5,4,6,7,255,255, 
+    //     Puzzle7, NoData, NONE, 
+    //     {resetCallback, [](){ updateRelay(ROTATING_DOOR, LOW); }}, 
+    //     {solvedCallback, [](){ playSound(MACHINERY); }, [](){ updateRelay(ROTATING_DOOR, HIGH); }}, 
+    //     {altSolvedCallback}
+    // ),
+    Puzzle("sample", 
+        8,9,10,11,255,255, 
+        Puzzle1, NoData, NONE, 
+        {resetCallback, [](){ updateRelay(ROTATING_DOOR, LOW); }}, 
+        {solvedCallback, [](){ playSound(MACHINERY); }, [](){ updateRelay(ROTATING_DOOR, HIGH); }}, 
         {altSolvedCallback}
     ),
-    Puzzle("dracula", 
-        8,9,10,11,255,12, 
-        Puzzle10, NoData, Puzzle9, 
-        {resetCallback}, 
-        {solvedCallback}, 
-        {altSolvedCallback}),
+    // Puzzle("lights", 
+    //     4,5,6,7,255,255, 
+    //     Puzzle9, NoData, NONE, 
+    //     {resetCallback}, 
+    //     {solvedCallback}, 
+    //     {altSolvedCallback}
+    // ),
+    // Puzzle("dracula", 
+    //     8,9,10,11,255,12, 
+    //     Puzzle10, NoData, Puzzle9, 
+    //     {resetCallback}, 
+    //     {solvedCallback}, 
+    //     {altSolvedCallback}),
 };
 
 struct Message {
@@ -135,12 +148,45 @@ const uint8_t buttons[N_BUTTONS] = {
 bool button_state[N_BUTTONS] = {0};
 unsigned long cooldown_time[N_BUTTONS] = {0};
 
+void send_message(Message pack, HardwareSerial *port) {
+    if(pack.sig != EndOfMessages) {
+        byte first = pack.sig | 0x80;
+        byte second = pack.data & 0x7F;
+        port->write(first);
+        port->write(second);
+    }
+}
+
+inline Message pack_message(MessageSignal a, MessageData b) {
+    Message m;
+    m.sig = static_cast<MessageSignal>(a & 0x7F);
+    m.data = b & 0x7F;
+    return m;
+}
+
+void send_message_all(Message pack) {
+    send_message(pack, &Serial);
+}
+
+inline void send_message_all(MessageSignal sig, MessageData data) {
+    send_message_all(pack_message(sig, data));
+}
+
 void handle_message(MessageSignal sig, MessageData data) {
     // Serial.print(sig);
     if (sig == Sound) {
         // Serial.print("PLAY SOUND");
         // Serial.println(data);
         // playSound(data);
+    }
+
+    if (sig <= 9) {
+        if (data == Override) {
+            puzzles[sig].startPulse(Override);
+        }
+         if (data == Reset) {
+            puzzles[sig].startPulse(Reset);
+        }
     }
 }
 
@@ -173,12 +219,7 @@ bool button_pressed(uint8_t which) {
     return false;
 }
 
-inline Message pack_message(MessageSignal a, MessageData b) {
-    Message m;
-    m.sig = static_cast<MessageSignal>(a & 0x7F);
-    m.data = b & 0x7F;
-    return m;
-}
+
 
 Message check_messages(HardwareSerial *port) {
     if(port->available()) {
@@ -191,22 +232,7 @@ Message check_messages(HardwareSerial *port) {
     return {EndOfMessages, NoData};
 }
 
-void send_message(Message pack, HardwareSerial *port) {
-    if(pack.sig != EndOfMessages) {
-        byte first = pack.sig | 0x80;
-        byte second = pack.data & 0x7F;
-        port->write(first);
-        port->write(second);
-    }
-}
 
-void send_message_all(Message pack) {
-    send_message(pack, &Serial);
-}
-
-inline void send_message_all(MessageSignal sig, MessageData data) {
-    send_message_all(pack_message(sig, data));
-}
 
 void update_light(MessageSignal sig, MessageData data) {
     if(sig <= Puzzle10) {
@@ -424,9 +450,9 @@ void loop() {
     for(uint8_t i = 0; i < N_BUTTONS; i++) {
         if(button_pressed(i)) handle_button(i);
     }
+    // Serial.println(puzzles[0].getCurrentState());
     for (size_t i = 0; i < sizeof(puzzles) / sizeof(puzzles[0]); i++) {
         puzzles[i].checkPinChanges();
-
         
         if (puzzles[i].getCurrentState() == Solved) {
             for (size_t j = 0; j < sizeof(puzzles) / sizeof(puzzles[0]); j++) {

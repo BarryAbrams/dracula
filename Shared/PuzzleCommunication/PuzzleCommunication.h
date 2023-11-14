@@ -34,7 +34,7 @@ private:
     int _altSolvedPin;
     bool _solvablePinSet = false; // Indicates whether the solvable pin is being used
     State currentState = UNSOLVED;
-
+    bool _altCallbackSet = false;
     bool prevReset = false;
     bool prevOverride = false;
     bool prevSolvable = true;
