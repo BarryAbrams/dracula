@@ -2,9 +2,15 @@
     {
         "types":[
         {
+            "id":"DEC",
+            "channels":[
+                "R", "G", "B"
+            ]
+        },
+        {
             "id":"SR",
             "channels":[
-                "BRIGHTNESS", "R", "G", "B", "W", "STROBE", "MACRO", "MACRO_SPEED"
+                 "R", "G", "B", "W"
             ]
         },
         {
@@ -24,29 +30,34 @@
     {
         "lights": [
             {
+                "id":"chandelier",
+                "type":"DEC",
+                "address":1
+            },
+            {
                 "id":"forest_wash",
                 "type":"SR",
-                "address":1
+                "address":4
             },
             {
                 "id":"castle_wash",
                 "type":"T12",
-                "address":9
+                "address":113
             },
             {
                 "id":"stairs_wash",
                 "type":"COB",
-                "address":16
+                "address":120
             },
             {
                 "id":"above_crypt",
                 "type":"COB",
-                "address":23
+                "address":127
             },
             {
                 "id":"below_crypt",
                 "type":"COB",
-                "address":30
+                "address":135
             }
         ]
     }

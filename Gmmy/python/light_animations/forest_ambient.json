@@ -1,55 +1,19 @@
 [
     {
-        "name":"sweep_from_green_to_blue",
-        "lights":["forest_wash","castle_wash"],
-        "duration":1000,
+        "name":"other",
+        "lights":["forest_wash"],
+        "duration":5000,
         "priority":0,
-        "delay":5000,
+        "delay":0,
         "loop":false,
         "steps":[
             {
                 "pos":0,
-                "color":"#00FF00"
-            },
-            {
-                "pos":0.25,
-                "color":"#000000"
-            },
-            {
-                "pos":0.5,
-                "color":"#feab00"
-            },
-            {
-                "pos":0.75,
-                "color":"#0FF000"
+                "color":"#333333"
             },
             {
                 "pos":1,
-                "color":"#00FF00"
-            }
-        ]
-    },
-    {
-        "name":"other",
-        "lights":["forest_wash","castle_wash"],
-        "duration":1000,
-        "priority":0,
-        "delay":6000,
-        "loop":true,
-        "steps":[
-            {
-                "pos":0,
-                "color":"#FF0000"
-            },
-   
-            {
-                "pos":0.5,
-                "color":"#0000FF"
-            },
-      
-            {
-                "pos":1,
-                "color":"#FF0000"
+                "color":"#FF00FF"
             }
         ]
     }

@@ -1,0 +1,31 @@
+[
+    {
+        "name":"other",
+        "lights":["chandelier"],
+        "duration":5000,
+        "priority":0,
+        "delay":0,
+        "loop":true,
+        "steps":[
+            {
+                "pos":0,
+                "color":"#FF0000"
+            },
+   
+            {
+                "pos":0.25,
+                "color":"#0000FF"
+            },
+
+            {
+                "pos":0.75,
+                "color":"#0000FF"
+            },
+      
+            {
+                "pos":1,
+                "color":"#FF0000"
+            }
+        ]
+    }
+]

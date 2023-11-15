@@ -5,7 +5,8 @@ import clicontrol, globals_module
 from sevenseg import SevenSeg
 from pydmx import DMX
 from portfinder import find_port
-
+import RPi.GPIO as GPIO
+import bootunes
 import os
 os.putenv('SDL_VIDEODRIVER', 'dummy')  # Set before pygame init
 cli_control = None
@@ -41,6 +42,12 @@ class MessageData(IntEnum):
     Blocked = 5
     FirstSolved = 6
 
+class SoundFX(IntEnum):
+    NoData = 0
+    BatSwarm = 1
+    PressurePlate = 2
+    Gong = 11
+
 puzzles = [
     {
         "name":"gravestones",
@@ -55,13 +62,18 @@ puzzles = [
     {
         "name":"hallway",
         "signal":MessageSignal.Puzzle5,
-        "state":MessageData.NoData
+        "state":MessageData.NoData,
+        "first_solve_sound":SoundFX.BatSwarm,
+        "solve_sound":SoundFX.Gong,
+        "unsolve_sound":SoundFX.PressurePlate,
     },
   
     {
         "name":"cryptex",
         "signal":MessageSignal.Puzzle7,
-        "state":MessageData.NoData
+        "state":MessageData.NoData,
+        "solve_sound":SoundFX.BatSwarm,
+        "unsolve_sound":SoundFX.PressurePlate,
     },
        {
         "name":"seance",
@@ -87,7 +99,8 @@ scenes = [
             ["all", {"global_check": "timer_playing", "value":False}]
         ], 
         "replaces":[],
-        "music":"69_Forest_Night.wav"
+        "music":"69_Forest_Night.mp3",
+        "light_animation":"hallway_chandelier"
     },
     {
         "name":"forest_intro",
@@ -119,7 +132,7 @@ scenes = [
             ["all", {"puzzle": "slide", "state": MessageData.Solved}]
         ],
         "replaces":[],
-        "music":"242_Spiders_Den.wav"
+        "music":"242_Spiders_Den.mp3"
     },
     {
         "name":"parlor",
@@ -130,7 +143,7 @@ scenes = [
             ]
         ],
         "replaces":[],
-        "music":"148_Barovian_Castle.wav"
+        "music":"148_Barovian_Castle.mp3"
     },
     {
         "name":"bedroom",
@@ -138,7 +151,7 @@ scenes = [
             ["all", {"puzzle": "cryptex", "state": MessageData.Solved}]
         ],
         "replaces":[],
-        "music":"242_Spiders_Den.wav"
+        "music":"242_Spiders_Den.mp3"
     },
     {
         "name":"illuminate",
@@ -238,7 +251,7 @@ class Timer(object):
         log("Stop game")
         self.is_running = False
         globals_module.timer_playing = False
-        self.mega.update_scenes()
+        self.scene_manager.update_scenes()
         if self.display is not None:
             # self.background_sound.play_background('148_Barovian_Castle.mp3', fade_time=3000)
             self.display.win_time = self.seconds_left
@@ -263,8 +276,8 @@ class Timer(object):
 
 class Mega(object):
     def __init__(self, background_sound, scene_manager):
-        # self.ser = serial.Serial('/dev/ttyACM0', 9600, timeout=1)
-        self.ser = serial.Serial('/dev/tty.usbmodem21401', 9600, timeout=1)
+        self.ser = serial.Serial('/dev/ttyACM1', 9600, timeout=1)
+        # self.ser = serial.Serial('/dev/tty.usbmodem21401', 9600, timeout=1)
         self.scene_manager = scene_manager
         time.sleep(2)
 
@@ -316,6 +329,13 @@ class Mega(object):
         global active_scenes
         for puzzle in puzzles:
             if puzzle['signal'] == puzzle_id:
+                if puzzle['state'] != state:
+                    if state == 4:
+                        if "solve_sound" in puzzle:
+                            bootunes.play_sound(puzzle['solve_sound'])
+                    if state == 6:
+                        if "first_solve_sound" in puzzle:
+                            bootunes.play_sound(puzzle['first_solve_sound'])
                 puzzle['state'] = state
 
         self.scene_manager.update_scenes()
@@ -353,6 +373,10 @@ class Light:
             self.channel_values['BRIGHTNESS'] = 255
             self.channel_values['R'], self.channel_values['G'], self.channel_values['B'] = rgb
 
+            if "MACRO" in self.channel_values:
+                self.channel_values['MACRO'] = 0
+                self.channel_values['MACRO_SPEED'] = 0
+
         elif len(hex_color) == 8 and all(ch in self.channel_values for ch in ['R', 'G', 'B', 'BRIGHTNESS']):
             # 8-digit hex code with brightness
             brightness = int(hex_color[:2], 16)
@@ -380,8 +404,8 @@ class Light:
 
 class SceneManager(object):
     def __init__(self, background_sound):
-        # port = find_port('ttyACM1*')
-        port = find_port('tty.usbmodem00*')
+        port = find_port('ttyACM0*')
+        # port = find_port('tty.usbmodem00*')
         self.dmx = DMX(port)
         self.sound = background_sound
         self.current_music = None
@@ -394,7 +418,7 @@ class SceneManager(object):
         loop_thread = threading.Thread(target=self.loop)
         loop_thread.start()
 
-        # self.play_animation("forest_ambient")
+        self.play_animation("forest_ambient")
         self.update_scenes()
 
         self.update_dmx_data()
@@ -646,7 +670,8 @@ class Display(object):
                 self.fail_disp()
 
     def fail_disp(self): # Called when the 7-segment display acts up, which it shouldn't do, but...
-            print('>> 7-segment error! <<')
+        pass
+            # print('>> 7-segment error! <<')
 
     def draw_disp(self):
         first, second = self.text_for_disp()
@@ -765,7 +790,7 @@ class Buttons(object):
                                     self.timer.stop_timer()
 
                             self.prev_state[button] = current_state
-                    sleep(0.1)
+                    time.sleep(0.1)
             except KeyboardInterrupt:
                 pass
             finally:
@@ -810,6 +835,10 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    if args.env == "prod":
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setwarnings(False)
+
     sound = BackgroundSound() # before continuing, make sure this is fully initalized
     if sound:
         sceneManager = SceneManager(sound)
@@ -818,8 +847,6 @@ if __name__ == "__main__":
         buttons = Buttons(args, timer)
 
     if args.env == "prod":
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setwarnings(False)
         disp = Display(timer)
         timer.display = disp
 
