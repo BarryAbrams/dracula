@@ -25,7 +25,19 @@ def send_command():
     time.sleep(.25)
     pins[7].value = False
 
+    for i, pin_num in enumerate(range(7)):
+        pins[pin_num].value = False
+
+def stop_sounds():
+    for i, pin_num in enumerate(range(7)):
+        pins[pin_num].value = True
+
+    send_command()
+
 def play_sound(sound_number):
+    print("PLAY SOUND: ", sound_number)
+    stop_sounds()
+
     if sound_number < 1 or sound_number > 120:
         return
 

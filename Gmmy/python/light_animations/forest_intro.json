@@ -1,23 +1,5 @@
 [
     {
-        "name":"reset",
-        "lights":["stairs_wash"],
-        "duration":2000,
-        "priority":0,
-        "delay":0,
-        "loop":false,
-        "steps":[
-            {
-                "pos":0,
-                "color":"#0000FF"
-            },
-            {
-                "pos":1,
-                "color":"#000000"
-            }
-        ]
-    },
-    {
         "name":"other",
         "lights":["forest_wash"],
         "duration":5000,

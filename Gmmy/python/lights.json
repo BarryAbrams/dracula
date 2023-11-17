@@ -47,7 +47,7 @@
             {
                 "id":"stairs_wash",
                 "type":"COB",
-                "address":120
+                "address":20
             },
             {
                 "id":"above_crypt",

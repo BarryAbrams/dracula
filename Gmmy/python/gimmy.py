@@ -44,51 +44,58 @@ class MessageData(IntEnum):
 
 class SoundFX(IntEnum):
     NoData = 0
-    BatSwarm = 1
-    PressurePlate = 2
+    DraculaIntro = 1
+    Thunder = 2
+    HarpSweep = 3
+    Coins = 4
+    DraculaOutro = 5
+    Whispers = 7
+    HeavyDoorOpen = 8
+    PressurePlate = 15
     Gong = 11
+    BatSwarm = 17
+
+prev_played_sound_effects = []
+prev_played_scenes = []
 
 puzzles = [
     {
         "name":"gravestones",
         "signal":MessageSignal.Puzzle1,
-        "state":MessageData.NoData
+        "state":MessageData.NoData,
+        "solve_sound":SoundFX.Thunder,
     },
     {
-        "name":"slide",
+        "name":"gemstones",
         "signal":MessageSignal.Puzzle3,
-        "state":MessageData.NoData
+        "state":MessageData.NoData,
+        "solve_sound":SoundFX.Coins,
     },
     {
         "name":"hallway",
         "signal":MessageSignal.Puzzle5,
         "state":MessageData.NoData,
-        "first_solve_sound":SoundFX.BatSwarm,
-        "solve_sound":SoundFX.Gong,
-        "unsolve_sound":SoundFX.PressurePlate,
+        "first_solve_sound":SoundFX.HeavyDoorOpen,
+        "solve_sound":SoundFX.Gong
     },
-  
     {
         "name":"cryptex",
         "signal":MessageSignal.Puzzle7,
         "state":MessageData.NoData,
-        "solve_sound":SoundFX.BatSwarm,
+        "solve_sound":SoundFX.HarpSweep
+    },
+    {
+        "name":"illuminate",
+        "signal":MessageSignal.Puzzle9,
+        "state":MessageData.NoData,
+        "solve_sound":SoundFX.Whispers,
         "unsolve_sound":SoundFX.PressurePlate,
     },
-       {
-        "name":"seance",
-        "signal":MessageSignal.Puzzle8,
-        "state":MessageData.NoData
-    },
     {
-        "name":"dracula_illuminate",
-        "signal":MessageSignal.Puzzle9,
-        "state":MessageData.NoData
-    },
-    {
-        "name":"dracula_stab",
+        "name":"dracula",
         "signal":MessageSignal.Puzzle10,
-        "state":MessageData.NoData
+        "state":MessageData.NoData,
+        "solve_sound":SoundFX.DraculaOutro,
     }
 ]
 
@@ -100,24 +107,17 @@ scenes = [
         ], 
         "replaces":[],
         "music":"69_Forest_Night.mp3",
-        "light_animation":"hallway_chandelier"
+        "light_animation":"forest_ambient"
     },
     {
         "name":"forest_intro",
         "requirements": [
             ["all", {"global_check": "timer_playing", "value":True}]
         ], 
-        "replaces":[],
+        "replaces":["preshow"],
         "music":"69_Forest_Night.mp3",
-        "light_animation":"castle_wall_ambient"
-    },
-    {
-        "name":"crypt",
-        "requirements": [
-            ["all", {"puzzle": "tree_door", "state": MessageData.Solved}]
-        ],        
-        "replaces":["forest_intro"],
-        "light_animation":"crypt_ambient"
+        "light_animation":"forest_intro",
+        "sound_effect":SoundFX.DraculaIntro
     },
     {
         "name":"forest_stairs",
@@ -132,7 +132,8 @@ scenes = [
             ["all", {"puzzle": "slide", "state": MessageData.Solved}]
         ],
         "replaces":[],
-        "music":"242_Spiders_Den.mp3"
+        "music":"242_Spiders_Den.mp3",
+        "light_animation":"hallway_chandelier"
     },
     {
         "name":"parlor",
@@ -234,8 +235,11 @@ class Timer(object):
             time.sleep(1)
 
     def start_timer(self):
+        global prev_played_sound_effects,prev_played_scenes
         log("Start game")
         if not self.is_running:
+            prev_played_scenes = []
+            prev_played_sound_effects = []
             self.seconds_left = game_length
             self.game_started = datetime.now()
             self.is_running = True
@@ -269,6 +273,8 @@ class Timer(object):
 
     def kill_timer(self):
         if self.is_running == False:
+            prev_played_scenes = []
+            prev_played_sound_effects = []
             self.is_running = False
             if self.display is not None:
                 self.display.win_time = None
@@ -276,7 +282,7 @@ class Timer(object):
 
 class Mega(object):
     def __init__(self, background_sound, scene_manager):
-        self.ser = serial.Serial('/dev/ttyACM1', 9600, timeout=1)
+        self.ser = serial.Serial('/dev/ttyACM0', 9600, timeout=1)
         # self.ser = serial.Serial('/dev/tty.usbmodem21401', 9600, timeout=1)
         self.scene_manager = scene_manager
         time.sleep(2)
@@ -332,10 +338,20 @@ class Mega(object):
                 if puzzle['state'] != state:
                     if state == 4:
                         if "solve_sound" in puzzle:
-                            bootunes.play_sound(puzzle['solve_sound'])
+                            sound_fx_obj = puzzle['solve_sound']
+                            print("SOLVE SOUND ", sound_fx_obj.value, prev_played_sound_effects)
+                            sound_value = sound_fx_obj.value
+                            if sound_value not in prev_played_sound_effects:
+                                prev_played_sound_effects.append(sound_value)
+                                bootunes.play_sound(sound_fx_obj)
                     if state == 6:
                         if "first_solve_sound" in puzzle:
-                            bootunes.play_sound(puzzle['first_solve_sound'])
+                            sound_fx_obj = puzzle['first_solve_sound']
+                            sound_value = sound_fx_obj.value
+                            print("FIRST SOLVE SOUND ", sound_fx_obj.value, prev_played_sound_effects)
+                            if sound_value not in prev_played_sound_effects:
+                                prev_played_sound_effects.append(sound_value)
+                                bootunes.play_sound(sound_fx_obj)
                 puzzle['state'] = state
 
         self.scene_manager.update_scenes()
@@ -404,7 +420,7 @@ class Light:
 
 class SceneManager(object):
     def __init__(self, background_sound):
-        port = find_port('ttyACM0*')
+        port = find_port('ttyACM1*')
         # port = find_port('tty.usbmodem00*')
         self.dmx = DMX(port)
         self.sound = background_sound
@@ -418,7 +434,7 @@ class SceneManager(object):
         loop_thread = threading.Thread(target=self.loop)
         loop_thread.start()
 
-        self.play_animation("forest_ambient")
+        # self.play_animation("forest_ambient")
         self.update_scenes()
 
         self.update_dmx_data()
@@ -604,21 +620,34 @@ class SceneManager(object):
                     active_scenes.append(scene)
 
         music = None
+        sound_fx = None
         active_scene_names = []
         for active_scene in active_scenes:
             active_scene_names.append(active_scene['name'])
             if 'music' in active_scene:
                 music = active_scene['music']
+            if 'sound_effect' in active_scene:
+                sound_fx_obj = active_scene['sound_effect']
+                sound_value = sound_fx_obj.value
+                if sound_value not in prev_played_sound_effects:
+                    prev_played_sound_effects.append(sound_value)
+                    sound_fx = sound_fx_obj
+
+            if 'light_animation' in active_scene:
+                print("HEY PLAY THIS: " + active_scene['light_animation'])
+                self.play_animation(active_scene['light_animation'])
 
         log(", ".join(active_scene_names))
 
         self.active_scenes = active_scenes
 
-
         if music and self.current_music != music:
             self.current_music = music
             print("music play", self.current_music)
             self.sound.play_background(self.current_music, fade_time=3000)
+
+        if sound_fx:
+            bootunes.play_sound(sound_fx)
 
     def meets_requirement(self, puzzle_state, requirement):
         if type(requirement) is dict:
