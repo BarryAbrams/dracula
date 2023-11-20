@@ -22,10 +22,13 @@ public:
     void update();
     State getCurrentState();
     bool getSolvable();
+    bool haltForReset = false;
+    void setPuzzleState(bool solved);
+    State currentState = UNSOLVED;
+    bool wasOverriden = false;
 
 private:
     bool debounceRead(int pin);
-    void setPuzzleState(bool solved);
     int _resetPin;
     int _overridePin;
     int _solvablePin; // Optional solvable pin
@@ -33,7 +36,6 @@ private:
     int _solvedPin;
     int _altSolvedPin;
     bool _solvablePinSet = false; // Indicates whether the solvable pin is being used
-    State currentState = UNSOLVED;
     bool _altCallbackSet = false;
     bool prevReset = false;
     bool prevOverride = false;

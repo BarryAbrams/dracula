@@ -21,6 +21,7 @@ class DMX:
 			self.data = bytearray(513) # A DMX packet is 513 bytes; the first one is $00 for standard use, the other 512 are the channels. Note, this means channels are 1-indexed!
 			self.data[0] = 0
 			if debug: print('Ready')
+			
 		else:
 			self.no_controller = True
 

@@ -3,54 +3,29 @@
 
 #include "Puzzle.h"
 
-//  #define SERIAL_DEBUGGING
-
-enum SFX {
-  NONE = -1, // to represent no sound or error
-  WAHHAHA = 1, // 1-1
-  GUNSHOT, // 1-2
-  SCREAM, // 1-3
-  CAR_HORN, // 1-4
-  MACHINERY,  // 1-5
-  SFX_6,  // 1-6
-  SFX_7,  // 1-7
-  SFX_8,  // 1-8
-  SFX_9,  // 1-9
-  SFX_10, // 1-10
-  SFX_11, // 1-11
-  SFX_12, // 1-12
-  HEAVY_SWITCH, // 1-13
-  SFX_14, // 1-14
-  SFX_15, // 1-15
-  PRESSURE_PLATE = 16, // 2-1
-  SFX_17, // 2-2
-  SFX_18, // 2-3
-  SFX_19, // 2-4
-  SFX_20, // 2-5
-  SFX_21, // 2-6
-  SFX_22, // 2-7
-  SFX_23, // 2-8
-  SFX_24, // 2-9
-  SFX_25, // 2-10
-  SFX_26, // 2-11
-  SFX_27, // 2-12
-  SFX_28, // 2-13
-  SFX_29, // 2-14
-  SFX_30  // 2-15
-  // more can be added...
-};
+// #define SERIAL_DEBUGGING
 
 enum RELAY {
-    NO_RELAY = -1,
-    TREE_DOOR = 52,
-    CEMETARY_DOOR = 50,
-    HALLWAY_DOOR = 48,
-    ROTATING_DOOR = 46,
-    HALLWAY_UV = 44,
-    DRACULA_UV = 42
+    NO_RELAY = -5,
+    TREE_DOOR = 24,
+    CEMETARY_DOOR = 22,
+    PARLOR_DOOR = 26,
+    ROTATING_DOOR = 28,
+    HALLWAY_UV = 30,
+    BEDROOM_UV = 32,
+    SKELETONS_ENABLE = 52
 };
 
-void playSound(SFX soundNumber);
+enum TRIGGER {
+    NO_TRIGGER = -1,
+    SLIDE_DOOR_SENSOR = 50,
+    DRACULA_COFFIN_SENSOR = 59,
+    DOOR_BELL_SENSOR = 19
+};
+
+bool prevSlideDoorSensor = false;
+bool prevDraculaCoffinSensor = false;
+
 
 // Definitions
 #define N_PUZZLES 10
@@ -60,17 +35,15 @@ void playSound(SFX soundNumber);
 #define DEBOUNCE_TIME 500
 
 typedef uint8_t MessageSignal;
-const MessageSignal Puzzle1 = 0, Puzzle2 = 1, Puzzle3 = 2, Puzzle4 = 3, Puzzle5 = 4, Puzzle6 = 5, Puzzle7 = 6, Puzzle8 = 7, Puzzle9 = 8, Puzzle10 = 9, Sound = 19, Time = 20, Shutdown = 21, Startup = 22, Debug = 0x71, Query = 0x72, EndOfMessages = 0x7F;
+const MessageSignal Puzzle1 = 0, Puzzle2 = 1, Puzzle3 = 2, Puzzle4 = 3, Puzzle5 = 4, Puzzle6 = 5, Puzzle7 = 6, Puzzle8 = 7, Puzzle9 = 8, Puzzle10 = 9, GameReset = 18, Sound = 19, Time = 20, Shutdown = 21, Startup = 22, Debug = 0x71, Query = 0x72, EndOfMessages = 0x7F;
 
 typedef uint8_t MessageData;
-const MessageData NoData = 0, Override = 1, Reset = 2, Unsolved = 3, Solved = 4, Blocked = 5, FirstSolved = 6;
+const MessageData None = -1, NoData = 0, Override = 1, Reset = 2, Unsolved = 3, Solved = 4, Blocked = 5, FirstSolved = 6, Reboot = 7;
 
 void resetCallback() {
     #ifdef SERIAL_DEBUGGING
     Serial.println("RESET");
     #endif 
-
-    
 }
 
 void solvedCallback() {
@@ -86,43 +59,63 @@ void altSolvedCallback() {
 }
 
 void updateRelay(RELAY relay, bool state) {
-    digitalWrite(relay, state);
+    #ifdef SERIAL_DEBUGGING
+    Serial.println("ALT SOLVED");
+    #endif 
+    digitalWrite(relay, !state);
 }
 
 Puzzle puzzles[] = {
-    Puzzle("hallway", 
-        A1,A0,A2,A3,A4,255, 
-        Puzzle5, NoData, NONE, 
-        {resetCallback, [](){ updateRelay(HALLWAY_DOOR, LOW); }}, 
-        {solvedCallback, [](){ playSound(HEAVY_SWITCH); }, [](){ updateRelay(HALLWAY_DOOR, HIGH); }}, 
-        {altSolvedCallback, [](){ playSound(PRESSURE_PLATE); }}),
-    Puzzle("cryptex", 
-        5,4,6,7,255,255, 
-        Puzzle7, NoData, NONE, 
-        {resetCallback, [](){ updateRelay(ROTATING_DOOR, LOW); }}, 
-        {solvedCallback, [](){ playSound(MACHINERY); }, [](){ updateRelay(ROTATING_DOOR, HIGH); }}, 
+
+    Puzzle("gravestones", 
+        48,46,44,42,255,255, 
+        Puzzle1, NoData, None, 
+        {resetCallback, [](){ updateRelay(TREE_DOOR, LOW); }}, 
+        {solvedCallback, [](){ updateRelay(TREE_DOOR, HIGH); }}, 
         {altSolvedCallback}
     ),
-    // Puzzle("sample", 
-    //     8,9,10,11,255,255, 
-    //     Puzzle1, NoData, NONE, 
-    //     {resetCallback, [](){ updateRelay(ROTATING_DOOR, LOW); }}, 
-    //     {solvedCallback, [](){ playSound(MACHINERY); }, [](){ updateRelay(ROTATING_DOOR, HIGH); }}, 
-    //     {altSolvedCallback}
-    // ),
-    // Puzzle("lights", 
-    //     4,5,6,7,255,255, 
-    //     Puzzle9, NoData, NONE, 
-    //     {resetCallback}, 
-    //     {solvedCallback}, 
-    //     {altSolvedCallback}
-    // ),
-    // Puzzle("dracula", 
-    //     8,9,10,11,255,12, 
-    //     Puzzle10, NoData, Puzzle9, 
-    //     {resetCallback}, 
-    //     {solvedCallback}, 
-    //     {altSolvedCallback}),
+    Puzzle("gemstones", 
+        34,36,38,40,255,255, 
+        Puzzle3, NoData, None, 
+        {resetCallback}, 
+        {solvedCallback}, 
+        {altSolvedCallback}
+    ),
+    Puzzle("hallway",
+        A1,A0,A2,A3,A4,255, 
+        Puzzle5, NoData, None, 
+        {resetCallback, [](){ updateRelay(PARLOR_DOOR, LOW); }}, 
+        {solvedCallback}, 
+        {altSolvedCallback,[](){ updateRelay(PARLOR_DOOR, HIGH); } }),
+
+    Puzzle("magic_words",
+        A6,A7,A14,A15,255,255, 
+        Puzzle6, NoData, None, 
+        {resetCallback,  [](){ updateRelay(SKELETONS_ENABLE, HIGH); }, [](){ updateRelay(ROTATING_DOOR, LOW); }}, 
+        {solvedCallback,  [](){ updateRelay(SKELETONS_ENABLE, LOW); }, [](){ updateRelay(ROTATING_DOOR, HIGH); }}, 
+        {altSolvedCallback}
+    ),
+
+    Puzzle("cryptex", 
+        5,4,6,7,255,255, 
+        Puzzle7, NoData, None, 
+        {resetCallback, [](){ updateRelay(BEDROOM_UV, LOW); }}, 
+        {solvedCallback, [](){ updateRelay(BEDROOM_UV, HIGH); }}, 
+        {altSolvedCallback}
+    ),
+    Puzzle("illuminate",
+        17,14,15,16,255,255, 
+        Puzzle9, NoData, None, 
+        {resetCallback}, 
+        {solvedCallback}, 
+        {altSolvedCallback}
+    ),
+    Puzzle("dracula", 
+        8,9,10,11,255,12, 
+        Puzzle10, NoData, Puzzle9, 
+        {resetCallback}, 
+        {solvedCallback}, 
+        {altSolvedCallback}),
 };
 
 struct Message {
@@ -147,6 +140,8 @@ const uint8_t buttons[N_BUTTONS] = {
 };
 bool button_state[N_BUTTONS] = {0};
 unsigned long cooldown_time[N_BUTTONS] = {0};
+
+bool currentButtonStates[N_BUTTONS] = {false};
 
 void send_message(Message pack, HardwareSerial *port) {
     if(pack.sig != EndOfMessages) {
@@ -180,9 +175,14 @@ void handle_message(MessageSignal sig, MessageData data) {
         // playSound(data);
     }
 
+    if (sig == GameReset) {
+        updateRelay(CEMETARY_DOOR, LOW);
+    }
+
     if (sig <= 9) {
         int index = -1;
         for (size_t i = 0; i < sizeof(puzzles) / sizeof(puzzles[0]); i++) {
+
             if (puzzles[i].getSignal() == sig) {
                 index = i;
             }
@@ -194,6 +194,9 @@ void handle_message(MessageSignal sig, MessageData data) {
             }
             if (data == Reset) {
                 puzzles[index].startPulse(Reset);
+            }
+            if (data == Reboot) {
+                puzzles[index].startResetPulse();
             }
         }
         
@@ -328,110 +331,6 @@ void process_messages() {
     }
 }
 
-// Pin definitions
-const uint8_t NUMBER_FILE_PINS[4] = {14, 15, 16, 17};
-const uint8_t NUMBER_FOLDER_PINS[3] = {18, 19, 20};
-const uint8_t SEND_COMMAND_PIN = 21;
-
-// Functions
-void setPins(const uint8_t pins[], uint8_t n, uint8_t value) {
-    for(uint8_t i = 0; i < n; i++) {
-        digitalWrite(pins[i], (value & (1 << i)) ? HIGH : LOW);
-    }
-}
-
-unsigned long lastSendTime = 0;
-const unsigned long SEND_INTERVAL = 2000; // 5 seconds in milliseconds
-uint8_t currentSoundNumber = 1; // start with the first sound
-const uint8_t MAX_SOUNDS = 120; // max number of sounds
-
-void sendCommand() {
-    digitalWrite(SEND_COMMAND_PIN, HIGH);
-    delay(100);  // Pulse for 20 ms
-    digitalWrite(SEND_COMMAND_PIN, LOW);
-}
-
-void printPinStates() {
-    #ifdef SERIAL_DEBUGGING
-    Serial.print("File Pins: ");
-    for (uint8_t i = 0; i < 4; i++) {
-        Serial.print(digitalRead(NUMBER_FILE_PINS[i]));
-        Serial.print(" ");
-    }
-    Serial.print(" | Folder Pins: ");
-    for (uint8_t i = 0; i < 3; i++) {
-        Serial.print(digitalRead(NUMBER_FOLDER_PINS[i]));
-        Serial.print(" ");
-    }
-    Serial.println();
-    #endif 
-}
-
-void setNumbersAndSend(uint8_t file, uint8_t folder) {
-    setPins(NUMBER_FILE_PINS, 4, file);
-    setPins(NUMBER_FOLDER_PINS, 3, folder);
-    printPinStates();
-    delay(100);
-    sendCommand();
-}
-
-uint8_t translateSoundNumber(uint8_t desiredSound) {    
-    const uint8_t translationTable[15] = {9, 15, 1, 14, 2, 3, 7, 13, 12, 6, 10, 4, 5, 11, 8};
-
-    #ifdef SERIAL_DEBUGGING
-
-    Serial.print("desired sound: ");
-    Serial.print(desiredSound);
-
-    #endif
-
-    if (desiredSound < 1 || desiredSound > 15) {
-        #ifdef SERIAL_DEBUGGING
-        Serial.println(" OUT OF RANGE TRANSLATE");
-        #endif
-        return 0;
-    }
-
-    // Return the index (plus 1 for 1-based) of the desiredSound in the translation table.
-    for (uint8_t i = 0; i < 15; i++) {
-        if (translationTable[i] == desiredSound) {
-            #ifdef SERIAL_DEBUGGING
-            Serial.print(", maps to sound: ");
-            Serial.println(i);
-            #endif
-            return i + 1;
-        }
-    }
-    
-    // Error: Sound not found in the table
-    return 0;
-}
-
-
-void playSound(SFX soundNumber) {
-    if(soundNumber < 1 || soundNumber > 120) {
-        return;
-    }
-
-    uint8_t folderNumber = (soundNumber - 1) / 15;
-    uint8_t fileNumber = (soundNumber) % 15;
-    if (fileNumber == 0) {
-        fileNumber = 15;
-    }
-    uint8_t fileNumberTranslated = translateSoundNumber(fileNumber);
-    #ifdef SERIAL_DEBUGGING
-
-    Serial.print("Play: ");
-    Serial.print(soundNumber);
-    Serial.print(":");
-
-    Serial.print(folderNumber);
-    Serial.print("-");
-    Serial.println(fileNumber);
-    #endif
-
-    setNumbersAndSend(fileNumberTranslated, folderNumber);
-}
 
 void setup() {
     Serial.begin(9600);
@@ -443,24 +342,57 @@ void setup() {
 
     for(size_t i = 0; i < sizeof(puzzles) / sizeof(Puzzle); i++) {
         puzzles[i].setup();
-        // puzzles[i].setState(Reset);
         puzzles[i].setCallback(update_light);
-        // puzzles[i].setPlaySoundCallback(playSound);
     }
 
+    pinMode(TREE_DOOR, OUTPUT);
+    pinMode(CEMETARY_DOOR, OUTPUT);
+    pinMode(PARLOR_DOOR, OUTPUT);
+    pinMode(ROTATING_DOOR, OUTPUT);
+    pinMode(HALLWAY_UV, OUTPUT);
+    pinMode(BEDROOM_UV, OUTPUT);
 
-    for(uint8_t i = 0; i < 4; i++) pinMode(NUMBER_FILE_PINS[i], OUTPUT);
-    for(uint8_t i = 0; i < 3; i++) pinMode(NUMBER_FOLDER_PINS[i], OUTPUT);
-    pinMode(SEND_COMMAND_PIN, OUTPUT);
+    pinMode(SKELETONS_ENABLE, OUTPUT);
+    pinMode(SLIDE_DOOR_SENSOR, INPUT_PULLUP);
+    pinMode(DRACULA_COFFIN_SENSOR, INPUT_PULLUP);
+    pinMode(DOOR_BELL_SENSOR, INPUT_PULLUP);
 
-    // randomSeed(analogRead(0)); // Use an unconnected analog pin for randomness
+    updateRelay(CEMETARY_DOOR, LOW);
+}
+
+void handleSimultaneousPress(uint8_t puzzleIndex) {
+    // Code to handle the simultaneous press of reset and override buttons for the puzzle
+    // #ifdef SERIAL_DEBUGGING
+    int actualPuzzleIndex = findPuzzleIndexBySignal(puzzleIndex / 2);
+    // if (puzzles[actualPuzzleIndex].pulseStartTime == 0) {
+    puzzles[actualPuzzleIndex].startResetPulse();
+    // }
+    // #endif
+    // Add your logic here
 }
 
 void loop() {
     for(uint8_t i = 0; i < N_BUTTONS; i++) {
+        currentButtonStates[i] = digitalRead(buttons[i]) == LOW;
+    }
+
+    // Check for simultaneous button presses
+    for(uint8_t i = 0; i < N_BUTTONS - 1; i += 2) {
+        if(currentButtonStates[i] && currentButtonStates[i + 1]) {
+            // Reset and Override buttons for a puzzle are pressed simultaneously
+            handleSimultaneousPress(i); // Handle the simultaneous press
+        }
+        else if (currentButtonStates[i] || currentButtonStates[i + 1]) {
+            // Only one of the buttons is pressed
+            if (currentButtonStates[i]) handle_button(i); // Reset button
+            else handle_button(i + 1); // Override button
+        }
+    }
+
+    for(uint8_t i = 0; i < N_BUTTONS; i++) {
         if(button_pressed(i)) handle_button(i);
     }
-    // Serial.println(puzzles[0].getCurrentState());
+    // Serial.println(puzzles[2].getCurrentState());
     for (size_t i = 0; i < sizeof(puzzles) / sizeof(puzzles[0]); i++) {
         puzzles[i].checkPinChanges();
         
@@ -493,6 +425,18 @@ void loop() {
         
     }
 
+    bool currentDoorbellSensor = digitalRead(DOOR_BELL_SENSOR);
+    updateRelay(HALLWAY_UV, !currentDoorbellSensor);
+
+    bool currentSlideDoorSensor = digitalRead(SLIDE_DOOR_SENSOR);
+    // Serial.println(digitalRead(CEMETARY_DOOR));
+    if (prevSlideDoorSensor != currentSlideDoorSensor) {
+        if (currentSlideDoorSensor == 0) {
+            // Serial.println("TRIGGER");
+            updateRelay(CEMETARY_DOOR, HIGH);
+        }
+        prevSlideDoorSensor = currentSlideDoorSensor;
+    }
 
     process_messages();
     delay(50);

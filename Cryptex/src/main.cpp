@@ -166,7 +166,7 @@ void setup() {
   for (int i = 0; i < NUM_SENSORS; i++) {
     tcaSelect(i);
     Tlv493dMagnetic3DSensors[i].begin();
-    Tlv493dMagnetic3DSensors[i].setAccessMode(Tlv493dMagnetic3DSensors[i].MASTERCONTROLLEDMODE);
+    Tlv493dMagnetic3DSensors[i].setAccessMode(Tlv493dMagnetic3DSensors[i].ULTRALOWPOWERMODE);
     Tlv493dMagnetic3DSensors[i].disableTemp();
   }
 }

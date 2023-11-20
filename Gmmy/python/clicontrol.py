@@ -10,6 +10,7 @@ class CLIControl(threading.Thread):
         self.selected = -1
         self.log_win = None
         self.header_win = None
+        self.scenes_win = None
         self.puzzles_menu_win = None
         self.log_height = 10
         self.puzzles_selected = 0
@@ -35,14 +36,16 @@ class CLIControl(threading.Thread):
         curses.init_pair(5, curses.COLOR_CYAN, curses.COLOR_BLACK)   # FirstSolved
 
         height, width = stdscr.getmaxyx()
-        header_height = 2
-        menu_height = 3
+        header_height = 1
+        scenes_height = 2
+        menu_height = 1
         puzzles_menu_width = 30
         log_width = width - puzzles_menu_width
 
         self.header_win = curses.newwin(header_height, width, 0, 0)
-        self.puzzles_menu_win = curses.newwin(height - header_height - menu_height, puzzles_menu_width, header_height, 0)
-        self.log_win = curses.newwin(height - header_height - menu_height, log_width, header_height, puzzles_menu_width)
+        self.scenes_win = curses.newwin(scenes_height, width, 1, 0)
+        self.puzzles_menu_win = curses.newwin(height - header_height - menu_height - scenes_height, puzzles_menu_width, header_height + scenes_height, 0)
+        self.log_win = curses.newwin(height - header_height - menu_height - scenes_height, log_width, header_height + scenes_height, puzzles_menu_width)
         menu_win = curses.newwin(menu_height, width, height - menu_height, 0)
 
         self.puzzles_menu_win.keypad(True)
@@ -88,38 +91,41 @@ class CLIControl(threading.Thread):
 
             elif self.active_menu == "puzzles":
 
+                # Handling UP and DOWN keys
                 if key == curses.KEY_UP:
-                    if self.puzzles_selected >= 2:
-                        self.puzzles_selected -= 2
+                    if self.puzzles_selected >= 3:  # Change from 2 to 3
+                        self.puzzles_selected -= 3
                     else:
-                        self.puzzles_selected -= 2
+                        self.puzzles_selected -= 3
                         self.active_menu = "main"
                         self.selected = len(self.actions) - 1
                 elif key == curses.KEY_DOWN:
-                    if self.puzzles_selected < (num_puzzles * 2 - 2):
-                        self.puzzles_selected += 2
+                    if self.puzzles_selected < (num_puzzles * 3 - 3):  # Change from 2 to 3
+                        self.puzzles_selected += 3
                     else:
-                        self.puzzles_selected += 2
+                        self.puzzles_selected += 3
                         self.active_menu = "main"
                         self.selected = 0
-                        
+
+                # Handling RIGHT and LEFT keys
                 elif key == curses.KEY_RIGHT:
-                    if self.puzzles_selected % 2 == 0:
+                    if self.puzzles_selected % 3 < 2:  # Change from 2 to 3
                         self.puzzles_selected += 1
                 elif key == curses.KEY_LEFT:
-                    if self.puzzles_selected % 2 == 1:
+                    if self.puzzles_selected % 3 > 0:  # Change from 2 to 3
                         self.puzzles_selected -= 1
 
                 elif key in [curses.KEY_ENTER, ord('\n'), ord(' ')]:
-                    selected_puzzle_index = self.puzzles_selected // 2
+                    selected_puzzle_index = self.puzzles_selected // 3
                     selected_puzzle = self.puzzles[selected_puzzle_index]['name']
-                    selected_action = 'R' if self.puzzles_selected % 2 == 0 else 'O'
+                    selected_action = 'R' if self.puzzles_selected % 3 == 0 else ('O' if self.puzzles_selected % 3 == 1 else 'B')
 
-               
                     if selected_action == 'R':
                         self.resetPuzzle(self.puzzles[selected_puzzle_index]['signal'])
                     elif selected_action == 'O':
                         self.overridePuzzle(self.puzzles[selected_puzzle_index]['signal'])
+                    elif selected_action == 'B':
+                        self.rebootPuzzle(self.puzzles[selected_puzzle_index]['signal'])
 
         curses.endwin()
 
@@ -131,10 +137,18 @@ class CLIControl(threading.Thread):
 
         self.header_win.addstr(0, max(len(game_name) + 1, width - len(right_text) - 1), right_text)
 
-        horizontal_rule = "-" * (width - 1)
-        self.header_win.addstr(1, 0, horizontal_rule)
-
         self.header_win.refresh()
+
+    def draw_scenes(self, scenes_text):
+        if self.scenes_win is not None:
+            height, width = self.scenes_win.getmaxyx()
+            self.scenes_win.clear()
+            self.scenes_win.addstr(0, 0, "active scenes: " + scenes_text)
+
+            horizontal_rule = "-" * (width - 1)
+            self.scenes_win.addstr(1, 0, horizontal_rule)
+
+            self.scenes_win.refresh()
 
     def draw_menu(self, menu_win):
         menu_win.clear()
@@ -162,7 +176,7 @@ class CLIControl(threading.Thread):
         
         menu_items = []
         for puzzle in self.puzzles:
-            combined_item = f"{puzzle['name']} [R][O]"
+            combined_item = f"{puzzle['name']} [R][O][B]"
             menu_items.append(combined_item)
 
         for idx, combined_item in enumerate(menu_items):
@@ -182,16 +196,22 @@ class CLIControl(threading.Thread):
                 color_pair = curses.color_pair(5)
 
             puzzle_label_len = len(self.puzzles[idx]['name'])
-            if self.puzzles_selected // 2 == idx:
-                before = combined_item[:puzzle_label_len + 1 + 3 * (self.puzzles_selected % 2)]
-                highlight = combined_item[puzzle_label_len + 1 + 3 * (self.puzzles_selected % 2):puzzle_label_len + 4 + 3 * (self.puzzles_selected % 2)]
-                after = combined_item[puzzle_label_len + 4 + 3 * (self.puzzles_selected % 2):]
-                
+            if self.puzzles_selected // 3 == idx:  # Updated division to 3 for [R][O][B]
+                puzzle_label_len = len(self.puzzles[idx]['name'])+1  # Length of puzzle name
+                button_length = 3  # Length of each button including brackets
+
+                selected_button_index = self.puzzles_selected % 3
+                before_length = puzzle_label_len + selected_button_index * button_length
+                highlight_length = button_length  # Length of the button text including brackets
+
+                before = combined_item[:before_length]
+                highlight = combined_item[before_length:before_length + highlight_length]
+                after = combined_item[before_length + highlight_length:]
+
+                # Display the text with appropriate highlighting
                 self.puzzles_menu_win.addstr(idx, 0, before, color_pair)
-                if len(before) + len(highlight) < width:
-                    self.puzzles_menu_win.addstr(idx, len(before), highlight, curses.A_REVERSE | color_pair)
-                if len(before) + len(highlight) + len(after) < width:
-                    self.puzzles_menu_win.addstr(idx, len(before) + len(highlight), after, color_pair)
+                self.puzzles_menu_win.addstr(idx, len(before), highlight, curses.A_REVERSE | color_pair)
+                self.puzzles_menu_win.addstr(idx, len(before) + len(highlight), after, color_pair)
             else:
                 self.puzzles_menu_win.addstr(idx, 0, combined_item[:width-1], color_pair)  # Truncate to fit
 
@@ -214,22 +234,36 @@ class CLIControl(threading.Thread):
         elif cmd == "time_down":
             self.buttons.timer.remove_time()
         elif cmd == "reset":
+            self.buttons.reset()
             self.buttons.timer.kill_timer()
-        elif cmd in ["win", "lose", "quit"]:
+        elif cmd == "win":
+            self.buttons.win_game()
             self.buttons.timer.stop_timer()
+        elif cmd == "lose":
+            self.buttons.lose_game()
+            self.buttons.timer.stop_timer()
+        elif cmd == "quit":
+            self.buttons.timer.stop_timer()
+
         elif cmd == "exit":
             self.running = False
 
     def resetPuzzle(self, signal):
         # selected_puzzle = self.puzzles[selected_puzzle_index]['name']
-        self.log("Reset: " + str(signal))
+        # self.log("Reset: " + str(signal))
         self.mega.send_message(signal, 2)
         pass
 
     def overridePuzzle(self, signal):
         # selected_puzzle = self.puzzles[selected_puzzle_index]['name']
-        self.log("Override: " + str(signal))
+        # self.log("Override: " + str(signal))
         self.mega.send_message(signal, 1)
+        pass
+
+    def rebootPuzzle(self, signal):
+        # self.log("Reboot: " + str(signal))
+        self.mega.send_message(signal, 7)
+        # Add logic to send the reboot signal
         pass
 
     def log(self, message):

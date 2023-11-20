@@ -65,21 +65,28 @@ MessageSignal Puzzle::getDependantPuzzle() const {
     return dependantPuzzle;
 }
 
-void Puzzle::setState(MessageData newState) {
-    digitalWrite(resetPin, (newState & 1) ? HIGH : LOW);
-    digitalWrite(overridePin, (newState & 2) ? HIGH : LOW);
-}
-
 void Puzzle::endPulse() {
     digitalWrite(resetPin, LOW);
     digitalWrite(overridePin, LOW);
     pulseStartTime = 0;
 }
 
+void Puzzle::endResetPulse() {
+    digitalWrite(resetPin, LOW);
+    digitalWrite(overridePin, LOW);
+    resetPulseStartTime = 0;
+}
+
 void Puzzle::startPulse(MessageData newState) {
     digitalWrite(resetPin, (newState & 1) ? HIGH : LOW);
     digitalWrite(overridePin, (newState & 2) ? HIGH : LOW);
     pulseStartTime = millis();
+}
+
+void Puzzle::startResetPulse() {
+    digitalWrite(resetPin, HIGH);
+    digitalWrite(overridePin, HIGH);
+    resetPulseStartTime = millis();
 }
 
 bool Puzzle::getSolvable() {
@@ -99,8 +106,18 @@ void Puzzle::setSolvable(bool state) {
 }
 
 void Puzzle::checkPinChanges() {
-    if (pulseStartTime != 0 && millis() - pulseStartTime >= 250) {
-        endPulse();
+    if (resetPulseStartTime == 0) {
+        if (pulseStartTime != 0 && millis() - pulseStartTime >= 250) {
+            endPulse();
+        }
+    }
+
+    if (resetPulseStartTime != 0 && millis() - resetPulseStartTime >= 3500) {
+        endResetPulse();
+    }
+
+    if (digitalRead(unsolvedPin) == LOW and digitalRead(solvedPin) == LOW && resetPulseStartTime != 0) {
+        endResetPulse();
     }
 
     MessageData computedData = 0;  // Initialize with some default value

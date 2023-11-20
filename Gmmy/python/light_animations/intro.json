@@ -1,7 +1,7 @@
 [
     {
         "name":"other",
-        "lights":["forest_wash"],
+        "lights":["forest_wash_a", "forest_wash_b", "entrance"],
         "duration":5000,
         "priority":0,
         "delay":0,
@@ -9,11 +9,13 @@
         "steps":[
             {
                 "pos":0,
-                "color":"#333333"
+                "color":"default",
+                "brightness":50
             },
             {
                 "pos":1,
-                "color":"#FF00FF"
+                "color":"default",
+                "brightness":100
             }
         ]
     }

@@ -1,19 +1,19 @@
 [
     {
-        "name":"other",
-        "lights":["forest_wash"],
+        "name":"2_stairs_lightning",
+        "lights":["forest_wash_a", "forest_wash_b"],
         "duration":5000,
-        "priority":0,
+        "priority":1,
         "delay":0,
         "loop":false,
         "steps":[
             {
                 "pos":0,
-                "color":"#FF00FF"
+                "color":"default"
             },
             {
                 "pos":0.14,
-                "color":"#FF00FF"
+                "color":"default"
             },
             {
                 "pos":0.15,
@@ -29,11 +29,11 @@
             },
             {
                 "pos":0.18,
-                "color":"#FF00FF"
+                "color":"default"
             },
             {
                 "pos":0.25,
-                "color":"#FF00FF"
+                "color":"default"
             },
             {
                 "pos":0.26,
@@ -49,11 +49,11 @@
             },
             {
                 "pos":0.29,
-                "color":"#FF00FF"
+                "color":"default"
             },
             {
                 "pos":0.35,
-                "color":"#FF00FF"
+                "color":"default"
             },
             {
                 "pos":0.36,
@@ -69,11 +69,11 @@
             },
             {
                 "pos":0.39,
-                "color":"#FF00FF"
+                "color":"default"
             },
             {
                 "pos":0.45,
-                "color":"#FF00FF"
+                "color":"default"
             },
             {
                 "pos":0.50,
@@ -89,11 +89,11 @@
             },
             {
                 "pos":0.53,
-                "color":"#FF00FF"
+                "color":"default"
             },
             {
                 "pos":0.60,
-                "color":"#FF00FF"
+                "color":"default"
             },
             {
                 "pos":0.61,
@@ -109,11 +109,31 @@
             },
             {
                 "pos":0.64,
-                "color":"#FF00FF"
+                "color":"default"
             },
             {
                 "pos":1,
-                "color":"#FF00FF"
+                "color":"default"
+            }
+        ]
+    },
+    {
+        "name":"2_stairs_fade_on",
+        "lights":["staircase_cob", "upstairs_t", "forest_crypt_t"],
+        "duration":5000,
+        "priority":0,
+        "delay":1000,
+        "loop":false,
+        "steps":[
+            {
+                "pos":0,
+                "color":"default",
+                "brightness":0
+            },
+            {
+                "pos":1,
+                "color":"default",
+                "brightness":100
             }
         ]
     }

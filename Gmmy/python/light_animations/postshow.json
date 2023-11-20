@@ -1,0 +1,22 @@
+[
+
+    {
+        "name":"other",
+        "lights":["practicals", "forest_wash_a", "entrance", "forest_wash_b", "w_cob", "nw_sr", "west_window_cob", "big_window_t", "window_pinspot", "east_window_cob", "dracula_uplight_cob", "staircase_cob", "upstairs_t", "forest_crypt_t", "hallway_cob", "hall_entrace_cob", "slide_cob", "skeletons_cob", "fake_mirror_pinspot", "beam_t", "beam_cob","beam_t", "beam_sr", "beam_cob"],
+        "duration":5000,
+        "priority":100,
+        "delay":0,
+        "loop":false,
+        "steps":[
+            {
+                "pos":0,
+                "color":"#000000"
+            },
+            {
+                "pos":1,
+                "color":"default",
+                "brightness":50
+            }
+        ]
+    }
+]

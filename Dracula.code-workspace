@@ -59,6 +59,8 @@
 			"utility": "cpp",
 			"valarray": "cpp",
 			"vector": "cpp"
-		}
+		},
+		"liveServer.settings.multiRootWorkspaceName": "python",
+		"liveServer.settings.port": 5501
 	}
 }

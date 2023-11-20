@@ -8,7 +8,6 @@ typedef uint8_t MessageData;
 typedef uint8_t MessageSignal;
 typedef void (*CallbackFunctionList)();
 typedef void (*CallbackFunction)(MessageSignal, MessageData);
-typedef void (*SoundEffectCallbackFunction)(int);
 
 class Puzzle {
 private:
@@ -29,11 +28,8 @@ private:
 
     uint8_t prevPinStates[5]; // Adjusted for new pins, including optional solvablePin
     CallbackFunction onPinChangeCallback;
-    int solvedSoundEffectId;
-    int altSolvedSoundEffectId;
-    SoundEffectCallbackFunction onSoundEffectCallback;
-    unsigned long pulseStartTime = 0;
     void endPulse();
+    void endResetPulse();
 
 public:
     Puzzle(const char* name,
@@ -51,10 +47,12 @@ public:
            std::vector<CallbackFunctionList> altSolvedCallbacks);
 
     void setup();  // Add this line
+    unsigned long pulseStartTime = 0;
+    unsigned long resetPulseStartTime = 0;
 
     MessageData getCurrentState() const;
-    void setState(MessageData newState);
     void startPulse(MessageData newState);
+    void startResetPulse();
     bool getAltSolved();
     bool getSolvable();
     void setSolvable(bool state);
@@ -64,13 +62,6 @@ public:
     }
     MessageSignal getSignal() const;
     MessageSignal getDependantPuzzle() const;
-    int getSolvedSoundEffectId() const;
-    void setSolvedSoundEffectId(int id);
-    int getAltSolvedSoundEffectId() const;
-    void setAltSolvedSoundEffectId(int id);
-    void setPlaySoundCallback(SoundEffectCallbackFunction callback) {
-        onSoundEffectCallback = callback;
-    }
 
 
     // Additional getters/setters for individual pins can be added here if needed.

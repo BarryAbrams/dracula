@@ -1,7 +1,9 @@
 // PuzzleCommunication.cpp
 
 #include "PuzzleCommunication.h"
-
+// #ifdef __AVR__
+//  #include <avr/wdt.h>
+// #endif
 PuzzleCommunication::PuzzleCommunication(int resetPin, int overridePin, int unsolvedPin, int solvedPin, int solvablePin, int altSolvedPin)
   : _resetPin(resetPin), _overridePin(overridePin),  _unsolvedPin(unsolvedPin), _solvedPin(solvedPin), _solvablePin(solvablePin), _altSolvedPin(altSolvedPin)
 {
@@ -12,6 +14,8 @@ void PuzzleCommunication::begin() {
   pinMode(_overridePin, INPUT_PULLUP);
   pinMode(_unsolvedPin, OUTPUT);
   pinMode(_solvedPin, OUTPUT);
+  digitalWrite(_solvedPin, HIGH);
+  digitalWrite(_unsolvedPin, HIGH);
 
   if (_altSolvedPin != 255) {
     pinMode(_altSolvedPin, OUTPUT);
@@ -43,14 +47,26 @@ void PuzzleCommunication::update() {
   bool override = debounceRead(_overridePin);
   bool solvable = getSolvable();
 
-  // // Serial.println(digitalRead(_altSolvedPin));
+  // Check if the reset button is pressed
+  if (reset && override) {
+    digitalWrite(_unsolvedPin, LOW);
+    digitalWrite(_solvedPin, LOW);
+    delay(500);
 
+    #ifdef __AVR__
+      // wdt_enable(WDTO_15MS);
+      // while (true);
+    #else
+      watchdog_reboot(0, 0, 0);
+    #endif
+  }
 
   bool resetAction = (prevReset != reset) && reset;
   bool overrideAction = (prevOverride != override) && override;
 
   if (resetAction && currentState != UNSOLVED) {
-      
+      Serial.println("RESET");
+      wasOverriden = false;
       if (_altSolvedPin != 255) {
         if (digitalRead(_altSolvedPin) == HIGH) {
           digitalWrite(_altSolvedPin, LOW);
@@ -66,9 +82,9 @@ void PuzzleCommunication::update() {
       }
   }
 
-
-
   if (overrideAction && currentState != SOLVED && solvable) {
+      Serial.println("OVERRIDE");
+      wasOverriden = true;
 
       if (_altSolvedPin != 255) {
         if (currentState == UNSOLVED) {
@@ -85,8 +101,6 @@ void PuzzleCommunication::update() {
         setPuzzleState(true);
       }
 
-      
-      
   }
 
   if (prevSolvable != solvable) {

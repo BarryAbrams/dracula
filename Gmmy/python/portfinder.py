@@ -1,12 +1,11 @@
 import pathlib
+import serial.tools.list_ports
+import sys
 
-def find_port(pattern, source='/dev/'):
-	while True:
-		options = list(pathlib.Path(source).glob(pattern))
-		print(options)
-		if options: break
-		print(f'ERROR: could not find any device matching the pattern "{pattern}". Make sure all the USB cables are plugged in, then press ENTER to continue.')
-		input()
-	if len(options) > 1:
-		print(f'WARNING: multiple ports found! The pattern "{pattern}" could match any of {", ".join(str(o) for o in options)}. Going with the first one, {str(options[0])}.')
-	return str(options[0])
+def find_port(product_id):
+    ports = list(serial.tools.list_ports.comports())
+    for port in ports:
+        if port.pid == product_id:
+            return port.device
+    return None
+

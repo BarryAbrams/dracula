@@ -1,0 +1,22 @@
+[
+    {
+        "name":"2_stairs_fade_off",
+        "lights":["staircase_cob", "upstairs_t", "forest_crypt_t"],
+        "duration":2000,
+        "priority":0,
+        "delay":0,
+        "loop":false,
+        "steps":[
+            {
+                "pos":0,
+                "color":"default",
+                "brightness":50
+            },
+            {
+                "pos":1,
+                "color":"#000000",
+                "brightness":0
+            }
+        ]
+    }
+]

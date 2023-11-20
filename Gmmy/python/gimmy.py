@@ -1,12 +1,13 @@
-import pygame, argparse, time, threading, serial, json
+import pygame, argparse, time, threading, serial, json, sys
 from datetime import datetime, timedelta
 from enum import IntEnum
 import clicontrol, globals_module
 from sevenseg import SevenSeg
 from pydmx import DMX
 from portfinder import find_port
-import RPi.GPIO as GPIO
-import bootunes
+
+
+
 import os
 os.putenv('SDL_VIDEODRIVER', 'dummy')  # Set before pygame init
 cli_control = None
@@ -79,6 +80,11 @@ puzzles = [
         "solve_sound":SoundFX.Gong
     },
     {
+        "name":"seance",
+        "signal":MessageSignal.Puzzle6,
+        "state":MessageData.NoData
+    },
+    {
         "name":"cryptex",
         "signal":MessageSignal.Puzzle7,
         "state":MessageData.NoData,
@@ -103,28 +109,39 @@ scenes = [
     {
         "name":"preshow",
         "requirements": [
-            ["all", {"global_check": "timer_playing", "value":False}]
+            ["all", {"global_check": "timer_playing", "value":False}, {"global_check": "gm_reset", "value":False}]
         ], 
         "replaces":[],
         "music":"69_Forest_Night.mp3",
-        "light_animation":"forest_ambient"
+        "light_animation_true":"preshow"
     },
     {
-        "name":"forest_intro",
+        "name":"gm_reset",
+        "requirements": [
+            ["all", {"global_check": "gm_reset", "value":True}]
+        ], 
+        "replaces":"*",
+        "music":"69_Forest_Night.mp3",
+        "light_animation_true":"postshow"
+    },
+    {
+        "name":"intro",
         "requirements": [
             ["all", {"global_check": "timer_playing", "value":True}]
         ], 
         "replaces":["preshow"],
         "music":"69_Forest_Night.mp3",
-        "light_animation":"forest_intro",
+        "light_animation_true":"intro",
         "sound_effect":SoundFX.DraculaIntro
     },
     {
-        "name":"forest_stairs",
+        "name":"stairs",
         "requirements": [
             ["all", {"puzzle": "gravestones", "state": MessageData.Solved}]
         ],
-        "light_animation":"forest_stairs_ambient"
+        "replaces":[],
+        "light_animation_true":"stairs",
+        "light_animation_false":"stairs_off"
     },
     {
         "name":"hallway",
@@ -133,7 +150,7 @@ scenes = [
         ],
         "replaces":[],
         "music":"242_Spiders_Den.mp3",
-        "light_animation":"hallway_chandelier"
+        "light_animation_true":"hallway"
     },
     {
         "name":"parlor",
@@ -164,11 +181,21 @@ scenes = [
     {
         "name":"kill_dracula",
         "requirements": [
-            ["all", {"puzzle": "dracula_stab", "state": MessageData.Solved}]
+            ["any", 
+            {"puzzle": "dracula_stab", "state": MessageData.Solved}, 
+            {"global_check": "has_won", "value":True}],
         ],
-        "replaces":["illuminate"],
-        "music":"267_Court_of_the_Count.mp3",
-        "light_animation":"kill_dracula"
+        "replaces":"*",
+        "music":"267_Court_of_the_Count.mp3"
+    },
+    {
+        "name":"fail_dracula",
+        "requirements": [
+            ["any", 
+            {"global_check": "has_lost", "value":True}],
+        ],
+        "replaces":"*",
+        "music":"267_Court_of_the_Count.mp3"
     }
 ]
 
@@ -193,7 +220,7 @@ class BackgroundSound:
         sound_filepath = os.path.join(current_directory, "ambient", filename)
         
         # For debugging purposes
-        log(f"Play ambient: {filename}")
+        # log(f"Play ambient: {filename}")
 
         if self.current_track:
             pygame.mixer.music.fadeout(fade_time)
@@ -225,7 +252,7 @@ class Timer(object):
                 elapsed_time = current_time - self.game_started
                 self.seconds_left = game_length - elapsed_time.total_seconds()
                 time_left = int(self.seconds_left)
-                time_log(time_left)
+                log_time(time_left)
 
                 # log(str(puzzles[0]['state']))
 
@@ -243,9 +270,10 @@ class Timer(object):
             self.seconds_left = game_length
             self.game_started = datetime.now()
             self.is_running = True
-            # self.background_sound.play_background('69_Forest_Night.wav', fade_time=3000)
-            # self.mega.send_message(MessageSignal.Sound, 1)
             globals_module.timer_playing = True
+            globals_module.gm_reset = False
+            globals_module.has_lost = False
+            globals_module.has_won = False
             self.scene_manager.update_scenes()
             if self.display is not None:
                 self.display.win_time = None
@@ -257,7 +285,6 @@ class Timer(object):
         globals_module.timer_playing = False
         self.scene_manager.update_scenes()
         if self.display is not None:
-            # self.background_sound.play_background('148_Barovian_Castle.mp3', fade_time=3000)
             self.display.win_time = self.seconds_left
             self.display.is_running = False
 
@@ -282,8 +309,13 @@ class Timer(object):
 
 class Mega(object):
     def __init__(self, background_sound, scene_manager):
-        self.ser = serial.Serial('/dev/ttyACM0', 9600, timeout=1)
-        # self.ser = serial.Serial('/dev/tty.usbmodem21401', 9600, timeout=1)
+        port = find_port(0x0042)
+
+        if not port:
+            print("Error: Arduino Mega Not Found.")
+            sys.exit(1)  # Exits the script with an error status
+
+        self.ser = serial.Serial(port, 9600, timeout=1)
         self.scene_manager = scene_manager
         time.sleep(2)
 
@@ -318,7 +350,7 @@ class Mega(object):
                                 found_puzzle = puzzle['name']
 
                         
-                        log(found_puzzle + " " + MessageData(message_data).name)
+                        # log(found_puzzle + " " + MessageData(message_data).name)
 
                 # except:
                 #     print(f"Couldn't find Data {message_signal}")
@@ -343,7 +375,8 @@ class Mega(object):
                             sound_value = sound_fx_obj.value
                             if sound_value not in prev_played_sound_effects:
                                 prev_played_sound_effects.append(sound_value)
-                                bootunes.play_sound(sound_fx_obj)
+                                if bootunes:
+                                    bootunes.play_sound(sound_fx_obj)
                     if state == 6:
                         if "first_solve_sound" in puzzle:
                             sound_fx_obj = puzzle['first_solve_sound']
@@ -351,14 +384,15 @@ class Mega(object):
                             print("FIRST SOLVE SOUND ", sound_fx_obj.value, prev_played_sound_effects)
                             if sound_value not in prev_played_sound_effects:
                                 prev_played_sound_effects.append(sound_value)
-                                bootunes.play_sound(sound_fx_obj)
+                                if bootunes:
+                                    bootunes.play_sound(sound_fx_obj)
                 puzzle['state'] = state
 
         self.scene_manager.update_scenes()
         pass
 
 class Animation:
-    def __init__(self, data):
+    def __init__(self, data, scene):
         self.name = data['name']
         self.lights = data['lights']
         self.duration = data['duration']
@@ -366,6 +400,7 @@ class Animation:
         self.delay = data['delay']
         self.loop = data['loop']
         self.steps = data['steps']
+        self.scene = scene
         self.start_time = None
 
 class LightType:
@@ -374,31 +409,38 @@ class LightType:
         self.channels = channels
 
 class Light:
-    def __init__(self, id, light_type, address):
+    def __init__(self, id, light_type, address, default_color):
         self.id = id
         self.type = light_type
         self.address = address
         self.channel_values = {channel: 0 for channel in self.type.channels}
+        self.default_color = default_color
+
+    def has_brightness_channel(self):
+        if "BRIGHTNESS" in self.channel_values:
+            return True
+        else:
+            return False
 
     def setColor(self, hex_color):
-        hex_color = hex_color.lstrip('#')
-
-        if len(hex_color) == 6 and all(ch in self.channel_values for ch in ['R', 'G', 'B']):
+        # hex_color = hex_color.lstrip('#'
+        
+        if len(hex_color) == 8:
             # Standard 6-digit RGB hex code
             rgb = tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
-            self.channel_values['BRIGHTNESS'] = 255
-            self.channel_values['R'], self.channel_values['G'], self.channel_values['B'] = rgb
+            brightness = int(hex_color[6:8], 16)
+
+            if "BRIGHTNESS" in self.channel_values:
+                self.channel_values['BRIGHTNESS'] = brightness
+                self.channel_values['R'], self.channel_values['G'], self.channel_values['B'] = rgb
+            else:
+                scale = brightness / 255
+                scaled_rgb = tuple(int(channel * scale) for channel in rgb)
+                self.channel_values['R'], self.channel_values['G'], self.channel_values['B'] = scaled_rgb
 
             if "MACRO" in self.channel_values:
                 self.channel_values['MACRO'] = 0
                 self.channel_values['MACRO_SPEED'] = 0
-
-        elif len(hex_color) == 8 and all(ch in self.channel_values for ch in ['R', 'G', 'B', 'BRIGHTNESS']):
-            # 8-digit hex code with brightness
-            brightness = int(hex_color[:2], 16)
-            rgb = tuple(int(hex_color[i:i+2], 16) for i in (2, 4, 6))
-            self.channel_values['BRIGHTNESS'] = brightness
-            self.channel_values['R'], self.channel_values['G'], self.channel_values['B'] = rgb
 
         else:
             raise ValueError("Invalid hex color format or the light does not have the required channels")
@@ -420,8 +462,11 @@ class Light:
 
 class SceneManager(object):
     def __init__(self, background_sound):
-        port = find_port('ttyACM1*')
-        # port = find_port('tty.usbmodem00*')
+        port = find_port(0x6001)
+        if not port:
+            print("Error: DMX Dongle not found.")
+            sys.exit(1)  # Exits the script with an error status
+
         self.dmx = DMX(port)
         self.sound = background_sound
         self.current_music = None
@@ -430,6 +475,10 @@ class SceneManager(object):
         self.light_types = self.load_light_types()
         self.lights = self.load_lights()
         self.active_animations = []
+        self.active_animation_names = []
+        self.previously_active_scene_names = []
+        self.prev_dmx_universe = []
+
 
         loop_thread = threading.Thread(target=self.loop)
         loop_thread.start()
@@ -468,7 +517,7 @@ class SceneManager(object):
             if end_address > 512:
                 raise ValueError(f"DMX channel range for light {light_data['id']} exceeds the universe limit")
 
-            lights.append(Light(light_data['id'], light_type, start_address))
+            lights.append(Light(light_data['id'], light_type, start_address, light_data['default_color']))
 
         return lights
 
@@ -489,9 +538,18 @@ class SceneManager(object):
 
     def update_dmx_data(self):
         dmx_universe = self.get_full_dmx_array()
-        for i, value in enumerate(dmx_universe):
-            self.dmx.set(i + 1, value)  # +1 because DMX channels are 1-indexed
+        # print(dmx_universe[0:25])
+        if self.prev_dmx_universe != dmx_universe:
+            for i, value in enumerate(dmx_universe):
+                self.dmx.set(i + 1, value)  # +1 because DMX channels are 1-indexed
 
+            self.dmx.render()
+            if socket:
+                with app.test_request_context('/'):
+                    socketio.emit("dmx", dmx_universe)
+        else:
+            pass
+        self.prev_dmx_universe = dmx_universe
 
     def load_json_data(self):
         # Load the JSON data from the file
@@ -499,14 +557,29 @@ class SceneManager(object):
             return json.load(file)
 
     def play_animation(self, animation_name):
-        with open(f'light_animations/{animation_name}.json', 'r') as file:
-            animation_data = json.load(file)
+        if animation_name not in self.active_animation_names:
+            self.active_animation_names.append(animation_name)
+            
+            with open(f'light_animations/{animation_name}.json', 'r') as file:
+                animation_data = json.load(file)
 
-        for anim in animation_data:
-            animation = Animation(anim)
-            animation.start_time = time.time()
-            animation.initial_start_time = animation.start_time  # Set the initial start time
-            self.active_animations.append(animation)
+            for anim in animation_data:
+                animation = Animation(anim, animation_name)
+                animation.start_time = time.time()
+                animation.initial_start_time = animation.start_time
+                self.active_animations.append(animation)
+
+    def get_active_animation_for_light(self, light_id):
+        highest_priority = float('inf')
+        active_animation = None
+
+        for animation in self.active_animations:
+            if light_id in animation.lights and animation.priority < highest_priority:
+                highest_priority = animation.priority
+                active_animation = animation
+
+        return active_animation
+
 
     def update_lights_for_animation(self, animation, current_time):
         elapsed = (current_time - animation.start_time) * 1000  # Convert to ms
@@ -537,21 +610,33 @@ class SceneManager(object):
             return  # No valid steps found
 
         # Interpolate the color
-        color = self.interpolate_color(current_step['color'], next_step['color'], pos, current_step['pos'], next_step['pos'])
 
         for light_id in animation.lights:
+            active_animation = self.get_active_animation_for_light(light_id)
+            if active_animation != animation:
+                continue  # Skip if this is not the highest priority animation
             light = next((l for l in self.lights if l.id == light_id), None)
+            current_brightness = current_step.get('brightness', 100)
+            next_brightness = next_step.get('brightness', 100)
+            color = self.interpolate_color(light, current_step['color'], next_step['color'], current_brightness, next_brightness, pos, current_step['pos'], next_step['pos'])
             if light:
                 light.setColor(color)
 
         self.render_scene()
 
-    def interpolate_color(self, start_color, end_color, pos, start_pos, end_pos):
+    def interpolate_color(self, light, start_color, end_color, start_brightness, end_brightness, pos, start_pos, end_pos):
         """
-        Interpolate between two colors, ensuring that the RGB values are within the 0-255 range.
+        Interpolate between two colors and brightness levels, ensuring that the RGB values are within the 0-255 range.
+        The function returns an 8-character hex value: brightness (00-FF) + RGB color.
         """
         if start_pos == end_pos:
-            return start_color  # Avoid division by zero
+            return self.color_to_hex(start_brightness, start_color)  # Avoid division by zero
+
+        if start_color == "default":
+            start_color = light.default_color
+
+        if end_color == "default":
+            end_color = light.default_color
 
         # Convert hex colors to RGB
         start_rgb = tuple(int(start_color.lstrip('#')[i:i+2], 16) for i in (0, 2, 4))
@@ -562,22 +647,46 @@ class SceneManager(object):
 
         # Interpolate each color channel and clamp values between 0 and 255
         interpolated_rgb = tuple(min(max(int(start + (end - start) * factor), 0), 255) for start, end in zip(start_rgb, end_rgb))
-        interpolated_color = f"#{''.join(f'{c:02x}' for c in interpolated_rgb)}"
 
-        return interpolated_color
+        # Interpolate brightness
+        interpolated_brightness = int(min(max(start_brightness + (end_brightness - start_brightness) * factor, 0), 100))
 
+        if light.has_brightness_channel():
+            return self.color_to_hex(interpolated_brightness, interpolated_rgb)
+        else:
+            # Adjust RGB values based on brightness for lights without a brightness channel
+            adjusted_rgb = self.adjust_rgb_for_brightness(interpolated_rgb, interpolated_brightness)
+            return self.color_to_hex(100, adjusted_rgb)  # Use full brightness value for RGB
+
+    def adjust_rgb_for_brightness(self, rgb, brightness):
+        """
+        Adjust RGB values based on brightness for lights without a dedicated brightness channel.
+        Brightness is a percentage (0-100), so convert it to a scale of 0-255 first.
+        """
+        brightness_scale = brightness / 100 * 255
+        adjusted_rgb = tuple(int(channel * brightness_scale / 255) for channel in rgb)
+        return adjusted_rgb
+
+    def color_to_hex(self, brightness, rgb):
+        """
+        Convert brightness and RGB values to an 8-character hex string.
+        """
+        brightness_hex = f"{int(brightness / 100 * 255):02x}"
+        rgb_hex = ''.join(f"{channel:02x}" for channel in rgb)
+        return f"{rgb_hex}{brightness_hex}"
 
     def render_scene(self):
         """
         Renders the current scene by sending the DMX data to the ultraDMX Micro device.
         """
         self.update_dmx_data()
-        self.dmx.render()
+        # if 
+        
 
     def loop(self):
         while True:
             current_time = time.time()
-
+            
             for animation in self.active_animations[:]:
                 elapsed = (current_time - animation.start_time) * 1000
 
@@ -589,23 +698,32 @@ class SceneManager(object):
                         animation.start_time = current_time - ((elapsed - animation.delay) % animation.duration) / 1000
                     else:
                         self.active_animations.remove(animation)
+                        any_others = False
+                        for active_animation in self.active_animations:
+                            if active_animation.scene == animation.scene:
+                                any_others = True
+
+                        if any_others == False:
+                            self.active_animation_names.remove(animation.scene)
                         continue
 
+             
                 self.update_lights_for_animation(animation, current_time)
 
             self.render_scene()
             time.sleep(1 / self.frames_per_second)
 
 
-    def active_light_animations(self):
-        light_animations = []
+    def active_light_animation_trues(self):
+        light_animation_trues = []
         for active_scene in self.active_scenes:
-            if 'light_animation' in active_scene:
-                light_animations.append(active_scene['light_animation'])
+            if 'light_animation_true' in active_scene:
+                light_animation_trues.append(active_scene['light_animation_true'])
 
-        return light_animations
+        return light_animation_trues
 
     def update_scenes(self):
+        previously_active_scenes = set(self.previously_active_scene_names)
         active_scenes = []
         puzzles_dict = {puzzle['name']: puzzle['state'] for puzzle in puzzles}
 
@@ -614,40 +732,43 @@ class SceneManager(object):
 
             if enable_scene:
                 if 'replaces' in scene:
-                    active_scenes = [s for s in active_scenes if s['name'] not in scene['replaces']]
+                    if scene['replaces'] == "*":
+                        active_scenes = []
+                    else:
+                        active_scenes = [s for s in active_scenes if s['name'] not in scene['replaces']]
 
                 if scene not in active_scenes:
                     active_scenes.append(scene)
 
-        music = None
-        sound_fx = None
-        active_scene_names = []
-        for active_scene in active_scenes:
-            active_scene_names.append(active_scene['name'])
-            if 'music' in active_scene:
-                music = active_scene['music']
-            if 'sound_effect' in active_scene:
-                sound_fx_obj = active_scene['sound_effect']
+        newly_active_scenes = [scene for scene in active_scenes if scene['name'] not in previously_active_scenes]
+        active_scene_names = [scene['name'] for scene in active_scenes]
+
+        for scene in newly_active_scenes:
+            if 'music' in scene:
+                self.current_music = scene['music']
+                self.sound.play_background(self.current_music, fade_time=3000)
+            if 'sound_effect' in scene:
+                sound_fx_obj = scene['sound_effect']
                 sound_value = sound_fx_obj.value
                 if sound_value not in prev_played_sound_effects:
                     prev_played_sound_effects.append(sound_value)
-                    sound_fx = sound_fx_obj
+                    if bootunes:
+                        bootunes.play_sound(sound_fx_obj)
+            if 'light_animation_true' in scene:
+                self.play_animation(scene['light_animation_true'])
 
-            if 'light_animation' in active_scene:
-                print("HEY PLAY THIS: " + active_scene['light_animation'])
-                self.play_animation(active_scene['light_animation'])
-
-        log(", ".join(active_scene_names))
+        # log("active scenes: " + ", ".join(active_scene_names))
 
         self.active_scenes = active_scenes
 
-        if music and self.current_music != music:
-            self.current_music = music
-            print("music play", self.current_music)
-            self.sound.play_background(self.current_music, fade_time=3000)
+        for previously_active_scene_name in previously_active_scenes:
+            if previously_active_scene_name not in active_scene_names:
+                inactive_scene = next((scene for scene in scenes if scene['name'] == previously_active_scene_name), None)
+                if inactive_scene and 'light_animation_false' in inactive_scene:
+                    self.play_animation(inactive_scene['light_animation_false'])
 
-        if sound_fx:
-            bootunes.play_sound(sound_fx)
+        self.previously_active_scene_names = active_scene_names
+
 
     def meets_requirement(self, puzzle_state, requirement):
         if type(requirement) is dict:
@@ -675,7 +796,6 @@ class SceneManager(object):
 
 class Display(object):
     def __init__(self, timer):
-        print("start 7 segment thread")
         self.disp = SevenSeg()
         time.sleep(1)
         self.disp.begin()
@@ -771,7 +891,7 @@ class Display(object):
 
 class Buttons(object):
     def __init__(self, args, timer):
-        log("start button thread")
+        # log("start button thread")
         self.buttons = {
             'quit': 27,
             'lose': 22,
@@ -796,6 +916,19 @@ class Buttons(object):
         
         pass
 
+    def lose_game(self):
+        globals_module.has_lost = True
+
+    def win_game(self):
+        globals_module.has_won = True
+
+    def reset(self):
+        log("reset")
+        globals_module.has_won = False
+        globals_module.has_lost = False
+        self.timer.scene_manager.update_scenes()
+
+
     def run(self):
         if self.args.env == "prod":
             self.prev_state = {button: GPIO.input(gpio_num) for button, gpio_num in self.buttons.items()}
@@ -806,7 +939,6 @@ class Buttons(object):
                         current_state = GPIO.input(gpio_num)
                         if current_state != self.prev_state[button]:
                             if current_state == 0:
-                                print(f"Button '{button}' pressed!")
                                 if button == "start":
                                     self.timer.start_timer()
                                 elif button == "time_up":
@@ -816,6 +948,11 @@ class Buttons(object):
                                 elif button == "reset":
                                     self.timer.kill_timer()
                                 elif button == "win" or button == "lose" or button == "quit":
+                                    if button == "win":
+                                        self.win_game()
+                                    if button == "lose":
+                                        self.lose_game()
+
                                     self.timer.stop_timer()
 
                             self.prev_state[button] = current_state
@@ -832,7 +969,7 @@ def log(message):
     else:
         print("\r"+message)
 
-def time_log(seconds):
+def log_time(seconds):
     hours = seconds // 3600
     minutes = (seconds % 3600) // 60
     seconds = seconds % 60
@@ -847,24 +984,39 @@ def time_log(seconds):
     else:
         print("\r Time Remaining:"+time)
 
+def log_active_scenes(active_scenes):
+    if cli_control is not None:
+        cli_control.draw_scenes(", ".join(active_scenes))
+    else:
+        print("\r Active Scenes:"+", ".join(active_scenes))
+
 def get_global_variables():
     # Access the global variables from globals_module
     return {
         "timer_playing": globals_module.timer_playing,
-        "some_other_global": globals_module.some_other_global,
+        "gm_reset": globals_module.gm_reset,
+        "has_won": globals_module.has_won,
+        "has_lost": globals_module.has_lost,
         # Add other global variables as needed
     }
 
 mega = None
+socket = None
+
+
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--cli", action="store_true", help="Start with CLI control")
-    parser.add_argument("--env", choices=['dev', 'prod'], help="Start with CLI control", default="prod")
+    parser.add_argument("--env", choices=['dev', 'prod'], help="Set an environment", default="prod")
+    parser.add_argument("--lights", action="store_true", help="Create lights feedback webpage")
 
     args = parser.parse_args()
-
+    bootunes = None
     if args.env == "prod":
+        import RPi.GPIO as GPIO
+        import bootunes
         GPIO.setmode(GPIO.BCM)
         GPIO.setwarnings(False)
 
@@ -879,6 +1031,43 @@ if __name__ == "__main__":
         disp = Display(timer)
         timer.display = disp
 
+        global_variable.gm_reset = True
+
     if args.cli:
         cli_control = clicontrol.CLIControl(buttons, puzzles, mega)
         cli_control.start()
+
+    if args.lights:
+
+        from flask import Flask, render_template
+        from flask_socketio import SocketIO, send, emit
+
+        app = Flask(__name__)
+        app.config['SECRET_KEY'] = 'secret!'
+        socketio = SocketIO(app)
+        socket = socketio
+
+        @app.route("/")
+        def lights():
+            with open('lights.json', 'r') as file:
+                data = json.load(file)
+
+                types = data[0]['types']
+                lights = data[1]['lights']
+
+                cleaned_lights = []
+                for light in lights:
+                    for light_type in types:
+                        if light_type['id'] == light['type']:
+                            light['type'] = light_type
+                    cleaned_lights.append(light)
+                
+                return render_template('lights.html', lights=cleaned_lights)
+
+        @socketio.on('my event')
+        def handle_my_custom_event(json):
+            print('received json: ' + str(json))
+            socketio.emit("dmx", sceneManager.prev_dmx_universe)
+                
+        socketio.run(app, debug=False)
+        pass

@@ -14,9 +14,15 @@
             ]
         },
         {
+            "id":"PIN",
+            "channels":[
+                 "R", "G", "B", "BRIGHTNESS", "STROBE", "MACRO_SPEED"
+            ]
+        },
+        {
             "id":"T12",
             "channels":[
-                "R", "G", "B", "STROBE", "MACRO", "MACRO_SPEED", "BRIGHTNESS"
+                "R", "G", "B"
             ]
         },
         {
@@ -24,41 +30,218 @@
             "channels":[ 
                 "BRIGHTNESS", "R", "G", "B", "STROBE", "MACRO", "MACRO_SPEED"
             ]
+        },
+        {
+            "id":"OPP",
+            "channels":[ 
+                "BRIGHTNESS", "R", "G", "B", "W", "A", "STROBE", "MACRO", "MACRO_SPEED"
+            ]
         }
     ]
     },
     {
         "lights": [
             {
-                "id":"chandelier",
+                "id":"practicals",
                 "type":"DEC",
-                "address":1
+                "address":1,
+                "room":"hallway",
+                "default_color":"#FFFFFF"
             },
+
             {
-                "id":"forest_wash",
+                "id":"forest_wash_a",
                 "type":"SR",
-                "address":4
+                "address":4,
+                "room":"cemetary",
+                "default_color":"#FF00FF"
             },
+
             {
-                "id":"castle_wash",
+                "id":"entrance",
+                "type":"OPP",
+                "address":8,
+                "room":"cemetary",
+                "default_color":"#00FFFF"
+            },
+
+            {
+                "id":"forest_wash_b",
+                "type":"SR",
+                "address":17,
+                "room":"cemetary",
+                "default_color":"#FF0000"
+            },
+
+            {
+                "id":"w_cob",
+                "type":"COB",
+                "address":21,
+                "room":"hallway",
+                "default_color":"#FFFFFF"
+            },
+
+            {
+                "id":"nw_sr",
+                "type":"SR",
+                "address":28,
+                "room":"parlor",
+                "default_color":"#FFFFFF"
+            },
+
+            {
+                "id":"west_window_cob",
+                "type":"COB",
+                "address":32,
+                "room":"parlor",
+                "default_color":"#FFFFFF"
+
+            },
+
+            {
+                "id":"big_window_t",
                 "type":"T12",
-                "address":113
+                "address":39,
+                "room":"parlor",
+                "default_color":"#FFFFFF"
+
+            },
+
+            {
+                "id":"window_pinspot",
+                "type":"PIN",
+                "address":42,
+                "room":"parlor",
+                "default_color":"#FFFFFF"
+
+            },
+
+
+            {
+                "id":"east_window_cob",
+                "type":"COB",
+                "address":48,
+                "room":"cemetary",
+                "default_color":"#FFFFFF"
+
+            },
+
+            {
+                "id":"dracula_uplight_cob",
+                "type":"COB",
+                "address":55,
+                "room":"bedroom",
+                "default_color":"#FFFFFF"
+
+            },
+
+            {
+                "id":"staircase_cob",
+                "type":"COB",
+                "address":62,
+                "room":"crypt",
+                "default_color":"#00FFFF"
+
+            },
+
+            {
+                "id":"upstairs_t",
+                "type":"T12",
+                "address":69,
+                "room":"crypt",
+                "default_color":"#00FF88"
+
             },
             {
-                "id":"stairs_wash",
-                "type":"COB",
-                "address":20
+                "id":"forest_crypt_t",
+                "type":"T12",
+                "address":72,
+                "room":"crypt",
+                "default_color":"#8800FF"
+
             },
             {
-                "id":"above_crypt",
+                "id":"hallway_cob",
                 "type":"COB",
-                "address":127
+                "address":75,
+                "room":"hallway",
+                "default_color":"#FFFFFF"
+
             },
             {
-                "id":"below_crypt",
+                "id":"hall_entrace_cob",
                 "type":"COB",
-                "address":135
+                "address":82,
+                "room":"hallway",
+                "default_color":"#FFFFFF"
+
+            },
+            {
+                "id":"slide_cob",
+                "type":"COB",
+                "address":89,
+                "room":"hallway",
+                "default_color":"#FFFFFF"
+
+            },
+            {
+                "id":"skeletons_cob",
+                "type":"COB",
+                "address":96,
+                "room":"skeletons",
+                "default_color":"#FFFFFF"
+
+            },
+            {
+                "id":"fake_mirror_pinspot",
+                "type":"PIN",
+                "address":103,
+                "room":"bedroom",
+                "default_color":"#FFFFFF"
+
+            },
+            {
+                "id":"beam_t",
+                "type":"T12",
+                "address":109,
+                "room":"bedroom",
+                "default_color":"#FFFFFF"
+
+            },
+            {
+                "id":"beam_cob",
+                "type":"COB",
+                "address":112,
+                "room":"bedroom",
+                "default_color":"#FFFFFF"
+
+            },
+            {
+                "id":"beam_t",
+                "type":"T12",
+                "address":119,
+                "room":"parlor",
+                "default_color":"#FFFFFF"
+
+            },
+            {
+                "id":"beam_sr",
+                "type":"SR",
+                "address":122,
+                "room":"parlor",
+                "default_color":"#FFFFFF"
+
+            },
+            {
+                "id":"beam_cob",
+                "type":"COB",
+                "address":126,
+                "room":"parlor",
+                "default_color":"#FFFFFF"
+
             }
+            
+          
         ]
     }
 

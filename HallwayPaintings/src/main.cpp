@@ -1,11 +1,9 @@
 #include <Wire.h>
 #include <Tlv493d.h>
+#include <avr/wdt.h>
 
-#include <FastLED.h>
 #include "PuzzleCommunication.h"
 
-#define NUM_LEDS 1
-#define DATA_PIN 17
 #define SOLVED_TIMEOUT 1000
 
 #define TCA9548_ADDRESS 0x70
@@ -14,7 +12,10 @@
 Tlv493d Tlv493dMagnetic3DSensors[NUM_SENSORS];
 const uint8_t sensorOrder[NUM_SENSORS] = {0,1,2,3,4,5};  // Adjust based on your setup
 int sensorsValues[NUM_SENSORS] = {0};
+float rawSensorsValues[NUM_SENSORS] = {0};
 int currentSensor = 0;
+float lastSensorValues[NUM_SENSORS] = {0};  // To store the last value of each sensor
+int stableCount[NUM_SENSORS] = {0};       // To count the stability of each value
 
 
 #define RESET_PIN A3
@@ -24,78 +25,6 @@ int currentSensor = 0;
 #define ALT_SOLVED_PIN A0
 
 PuzzleCommunication puzzleComm(RESET_PIN, OVERRIDE_PIN, UNSOLVED_PIN, SOLVED_PIN, 255, ALT_SOLVED_PIN);
-
-CRGB leds[NUM_LEDS];
-
-enum AnimationState {
-  NONE,
-  SOLVED_FADE_TO_WHITE,
-  SOLVED_HOLD_WHITE
-};
-
-AnimationState animationState = NONE;
-
-void setAllLeds(CRGB color) {
-  for (int i = 0; i < NUM_LEDS; i++) {
-    leds[i] = color;
-  }
-}
-
-void breathe(CRGB color, unsigned long interval) {
-  unsigned long currentMillis = millis();
-  unsigned long timeIntoInterval = currentMillis % interval;
-  int brightness = map(sin8(timeIntoInterval * 255 / interval), 0, 255, (255 * 25) / 100, (255 * 75) / 100);
-
-  CRGB newColor = color;
-  newColor.nscale8_video(brightness);
-  
-  setAllLeds(newColor);
-}
-
-void fadeFromTo(CRGB colorStart, CRGB colorEnd, unsigned long fadeDuration, AnimationState onEnd) {
-    static unsigned long startFadeMillis = 0;
-    static AnimationState lastOnEnd = NONE; // Add a static variable to track the last onEnd state
-
-    unsigned long currentMillis = millis();
-    
-    if (lastOnEnd != onEnd) {
-        startFadeMillis = currentMillis;
-        lastOnEnd = onEnd;
-    }
-
-    unsigned long timeSinceFadeStart = currentMillis - startFadeMillis;
-
-    if (timeSinceFadeStart <= fadeDuration) {
-        float progress = (float)timeSinceFadeStart / (float)fadeDuration;
-        CRGB currentColor = blend(colorStart, colorEnd, progress * 255);
-        setAllLeds(currentColor);
-    } else {
-        setAllLeds(colorEnd);
-        animationState = onEnd;
-    }
-}
-
-void flicker(CRGB color, unsigned long totalDuration, unsigned long minInterval, unsigned long maxInterval, AnimationState onEnd) {
-  static unsigned long lastToggleMillis = 0;
-  static unsigned long startMillis = millis();
-  static bool isOn = true;
-  static unsigned long nextInterval = 0;
-
-  unsigned long currentMillis = millis();
-
-  if (currentMillis - startMillis > totalDuration) {
-    animationState = onEnd;
-    return;
-  }
-
-  if (nextInterval == 0 || currentMillis - lastToggleMillis > nextInterval) {
-    isOn = !isOn;
-    setAllLeds(isOn ? color : CRGB::Black);
-
-    lastToggleMillis = currentMillis;
-    nextInterval = random(minInterval, maxInterval);
-  }
-}
 
 bool checkIsSolved() {
   static unsigned long firstSolvedMillis = 0;
@@ -109,7 +38,6 @@ bool checkIsSolved() {
       }
   }
 
-    
   if (currentReading) {
     if (!lastReading) {
       firstSolvedMillis = millis();
@@ -130,7 +58,7 @@ bool checkIsAltSolved() {
 
   bool currentReading = true;
     for (int i = 0; i < NUM_SENSORS; i++) {
-        if (sensorsValues[i] != -1) {
+        if (sensorsValues[i] != 2) {
             currentReading = false;
             break;
         }
@@ -151,23 +79,20 @@ bool checkIsAltSolved() {
 }
 
 void altSolve() {
-    animationState = SOLVED_FADE_TO_WHITE;
 }
 
 void solve() {
-    animationState = SOLVED_FADE_TO_WHITE;
 }
 
 void unsolve() {
-    animationState = NONE;
 }
 
 int calculateValue(float incomingValue) {
   int zStatus = 0;
    if (incomingValue < - 0.3) {
-    zStatus = -1;
-  } else if (incomingValue > 0.3) {
     zStatus = 1;
+  } else if (incomingValue > 0.3) {
+    zStatus = 2;
   }
 
   return zStatus;
@@ -180,66 +105,211 @@ void tcaSelect(uint8_t channel) {
   Wire.endTransmission();
 }
 
-void updateSensors() {
-  for (int i = 0; i < NUM_SENSORS; i++) {
-    tcaSelect(sensorOrder[i]);
-    Tlv493dMagnetic3DSensors[i].updateData();
-    float zValue = Tlv493dMagnetic3DSensors[i].getZ();
-    int sensorValue = calculateValue(zValue);
-    sensorsValues[i] = sensorValue;
-  }
+void blinkLed() {
+  digitalWrite(10, HIGH);
+  delay(250);
+  digitalWrite(10, LOW);
+  delay(250);
 }
 
-void setup() {
-  Wire.begin();
-  Serial.begin(9600);
-  FastLED.addLeds<NEOPIXEL, DATA_PIN>(leds, NUM_LEDS);
-  puzzleComm.begin();
-  puzzleComm.setCallbacks(solve, unsolve, checkIsSolved);
-  puzzleComm.setAltSolveCallback(altSolve, checkIsAltSolved);
 
-  Serial.println("TEST");
+int ledBrightness = 0;
+bool increasing = true;
+
+void pulseLed() {
+  if (increasing) {
+    ledBrightness += 10;
+    if (ledBrightness >= 255) {
+      ledBrightness = 255;
+      increasing = false;
+    }
+  } else {
+    ledBrightness -= 10;
+    if (ledBrightness <= 0) {
+      ledBrightness = 0;
+      increasing = true;
+    }
+  }
+  analogWrite(10, ledBrightness);
+}
+
+float roundFloat(float value, int places) {
+    float scaling = pow(10, places);
+    return round(value * scaling) / scaling;
+}
+
+
+void generalI2CReset() {
+  Serial.println("GENERAL RESET START");
+  digitalWrite(10, HIGH);
+  delay(250);
+  digitalWrite(10, LOW);
+  delay(250);
+  for (int i = 0; i < 8; i++) {
+    tcaSelect(i);
+    Wire.beginTransmission(0x00);
+    Wire.endTransmission();
+  }
+
   for (int i = 0; i < NUM_SENSORS; i++) {
     tcaSelect(i);
     Tlv493dMagnetic3DSensors[i].begin();
     Tlv493dMagnetic3DSensors[i].setAccessMode(Tlv493dMagnetic3DSensors[i].MASTERCONTROLLEDMODE);
     Tlv493dMagnetic3DSensors[i].disableTemp();
   }
+    Serial.println("GENERAL RESET DONE");
+
 }
 
+void updateSensors() {
+  bool isStable = false;
+  float epsilon = 0.001;  // Small value for float comparison
+
+  for (int i = 0; i < NUM_SENSORS; i++) {
+    tcaSelect(sensorOrder[i]);
+    Tlv493dMagnetic3DSensors[i].updateData();
+    float zValue = Tlv493dMagnetic3DSensors[i].getZ();
+    int sensorValue = calculateValue(zValue);
+
+    // Debugging: Print current and last values
+    // Serial.print("Sensor ");
+    // Serial.print(i);
+    // Serial.print(": Current=");
+    // Serial.print(zValue);
+    // Serial.print(", Last=");
+    // Serial.print(lastSensorValues[i]);
+    // Serial.print(", Trigger=");
+    // Serial.print(zValue == lastSensorValues[i]);
+    // Serial.print(", Count=");
+    // Serial.println(stableCount[i]);
+
+    // Check if the value is within a small range of the last value
+    if (zValue == lastSensorValues[i]) {
+      stableCount[i]++;
+      if (stableCount[i] > 50) {
+        isStable = true;
+        generalI2CReset();
+        stableCount[i] = 0;
+      }
+    } else {
+      stableCount[i] = 0;
+    }
+
+    sensorsValues[i] = sensorValue;
+    rawSensorsValues[i] = zValue;
+    lastSensorValues[i] = rawSensorsValues[i];  // Update the last value
+  }
+
+  if (isStable) {
+    blinkLed();
+  } else {
+    pulseLed();
+  }
+}
+
+
+
+void setup() {
+  Wire.begin();
+  Serial.begin(9600);
+  puzzleComm.begin();
+  puzzleComm.setCallbacks(solve, unsolve, checkIsSolved);
+  puzzleComm.setAltSolveCallback(altSolve, checkIsAltSolved);
+
+  for (int i = 0; i < NUM_SENSORS; i++) {
+    tcaSelect(i);
+    Tlv493dMagnetic3DSensors[i].begin();
+    Tlv493dMagnetic3DSensors[i].setAccessMode(Tlv493dMagnetic3DSensors[i].ULTRALOWPOWERMODE);
+    // Tlv493dMagnetic3DSensors[i].setAccessMode(Tlv493dMagnetic3DSensors[i].MASTERCONTROLLEDMODE);
+    Tlv493dMagnetic3DSensors[i].disableTemp();
+  }
+
+  pinMode(10, OUTPUT);
+  pinMode(12, OUTPUT);
+  digitalWrite(10, HIGH);
+  digitalWrite(12, HIGH);
+  delay(250);
+  digitalWrite(10, LOW);
+  digitalWrite(12, LOW);
+  delay(250);
+  digitalWrite(10, HIGH);
+  digitalWrite(12, HIGH);
+  delay(250);
+  digitalWrite(10, LOW);
+  digitalWrite(12, LOW);
+  delay(250);
+  Serial.println("REBOOT");
+  wdt_enable(WDTO_2S);
+}
+
+
 void loop() {
+  if (!puzzleComm.haltForReset) {
+    wdt_reset(); // Reset the watchdog timer regularly
+  }
+
+  // static unsigned long lastResetTime = 0;
+  // static unsigned long lastBlinkTime = 0;
+
+  // // Fading LED on pin 10
+  // if (increasing) {
+  //   ledBrightness += 10;
+  //   if (ledBrightness >= 255) {
+  //     ledBrightness = 255;
+  //     increasing = false;
+  //   }
+  // } else {
+  //   ledBrightness -= 10;
+  //   if (ledBrightness <= 0) {
+  //     ledBrightness = 0;
+  //     increasing = true;
+  //   }
+  // }
+  // analogWrite(10, ledBrightness);
+
+  // // General I2C Reset every 10 seconds
+  // if (millis() - lastResetTime >= 1000 * 60) {
+  //   generalI2CReset();
+  //   lastResetTime = millis();
+  // }
+
+  // // LED on pin 12 behavior
+  // if (checkIsSolved()) {
+  //   digitalWrite(12, HIGH);
+  // } else if (checkIsAltSolved()) {
+  //   if (millis() - lastBlinkTime >= 1000) {
+  //     digitalWrite(12, !digitalRead(12));  // Toggle LED state
+  //     lastBlinkTime = millis();
+  //   }
+  // } else {
+  //   digitalWrite(12, LOW);
+  // }
 
 
   updateSensors();
 
+  Serial.print(millis());
+  Serial.print("\t");
   for (int i =0; i<NUM_SENSORS; i++) {
-    Serial.print(sensorsValues[i]);
+    Serial.print("\t");
+    Serial.print(rawSensorsValues[i]);
+    // Serial.print("(");
+    // Serial.print(stableCount[i]);
+    // Serial.print(")");
   }
 
   Serial.println();
 
   puzzleComm.update();
 
-  Serial.println(puzzleComm.getCurrentState());
-
   if (puzzleComm.getCurrentState() == UNSOLVED) {
-      setAllLeds(CRGB::Black);
-  } else if (puzzleComm.getCurrentState() == FIRSTSOLVED) {
-    switch (animationState) {
-      case SOLVED_FADE_TO_WHITE:
-        fadeFromTo(CRGB::Black, CRGB::White, 2000, SOLVED_HOLD_WHITE);
-        break;
-      case SOLVED_HOLD_WHITE:
-        setAllLeds(CRGB::White);
-        break;
-      default:
-        break;
-    }
-  } else if (puzzleComm.getCurrentState() == SECONDSOLVED) {
-        setAllLeds(CRGB::Cyan);
-  }
 
-  FastLED.show();
+  } else if (puzzleComm.getCurrentState() == FIRSTSOLVED) {
+   
+  } else if (puzzleComm.getCurrentState() == SECONDSOLVED) {
+
+  }
   
-  delay(50);
+  delay(100);
 }
+
