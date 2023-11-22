@@ -522,8 +522,8 @@ class Light:
 
 class SceneManager(object):
     def __init__(self, background_sound):
-        port = find_port(0x6001)
-        # port = find_port(0x0094)
+        # port = find_port(0x6001)
+        port = find_port(0x0094)
         if not port:
             print("Error: DMX Dongle not found.")
             sys.exit(1)
