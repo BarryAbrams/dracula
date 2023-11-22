@@ -1,7 +1,9 @@
 [
     {
-        "name":"2_stairs_fade_off",
-        "lights":["staircase_cob", "upstairs_t"],
+        "name":"magic_words_off",
+        "lights":["dracula_uplight_cob",
+        "beam_cob",
+        "center_t"],
         "duration":2000,
         "priority":0,
         "delay":0,

@@ -24,6 +24,7 @@ enum TRIGGER {
 };
 
 bool prevSlideDoorSensor = false;
+bool prevDoorBellSensor = false;
 bool prevDraculaCoffinSensor = false;
 
 
@@ -35,7 +36,7 @@ bool prevDraculaCoffinSensor = false;
 #define DEBOUNCE_TIME 500
 
 typedef uint8_t MessageSignal;
-const MessageSignal Puzzle1 = 0, Puzzle2 = 1, Puzzle3 = 2, Puzzle4 = 3, Puzzle5 = 4, Puzzle6 = 5, Puzzle7 = 6, Puzzle8 = 7, Puzzle9 = 8, Puzzle10 = 9, GameReset = 18, Sound = 19, Time = 20, Shutdown = 21, Startup = 22, Debug = 0x71, Query = 0x72, EndOfMessages = 0x7F;
+const MessageSignal Puzzle1 = 0, Puzzle2 = 1, Puzzle3 = 2, Puzzle4 = 3, Puzzle5 = 4, Puzzle6 = 5, Puzzle7 = 6, Puzzle8 = 7, Puzzle9 = 8, Puzzle10 = 9, DoorBell = 15, SlideDoor = 16, CoffinDoor = 17, GameReset = 18, Sound = 19, Time = 20, Shutdown = 21, Startup = 22, Debug = 0x71, Query = 0x72, EndOfMessages = 0x7F;
 
 typedef uint8_t MessageData;
 const MessageData None = -1, NoData = 0, Override = 1, Reset = 2, Unsolved = 3, Solved = 4, Blocked = 5, FirstSolved = 6, Reboot = 7;
@@ -99,8 +100,8 @@ Puzzle puzzles[] = {
     Puzzle("cryptex", 
         5,4,6,7,255,255, 
         Puzzle7, NoData, None, 
-        {resetCallback, [](){ updateRelay(BEDROOM_UV, LOW); }}, 
-        {solvedCallback, [](){ updateRelay(BEDROOM_UV, HIGH); }}, 
+        {resetCallback, [](){ updateRelay(BEDROOM_UV, HIGH); }}, 
+        {solvedCallback, [](){ updateRelay(BEDROOM_UV, LOW); }}, 
         {altSolvedCallback}
     ),
     Puzzle("illuminate",
@@ -425,15 +426,41 @@ void loop() {
         
     }
 
+    bool currentCoffinDoorSensor = digitalRead(DRACULA_COFFIN_SENSOR);
+
+    if (prevDraculaCoffinSensor != currentCoffinDoorSensor) {
+        if (currentCoffinDoorSensor == 0) {
+            // Serial.println("TRIGGER");
+            // updateRelay(CEMETARY_DOOR, HIGH);
+            send_message_all(CoffinDoor, 4);
+        } else {
+            send_message_all(CoffinDoor, 3);
+        }
+        prevDraculaCoffinSensor = currentCoffinDoorSensor;
+    }
+
+
     bool currentDoorbellSensor = digitalRead(DOOR_BELL_SENSOR);
     updateRelay(HALLWAY_UV, !currentDoorbellSensor);
+    if (prevDoorBellSensor != currentDoorbellSensor) {
+        if (currentDoorbellSensor == 0) {
+            send_message_all(DoorBell, 4);
+        } else {
+            send_message_all(DoorBell, 3);
+
+        }
+        prevDoorBellSensor = currentDoorbellSensor;
+    }
 
     bool currentSlideDoorSensor = digitalRead(SLIDE_DOOR_SENSOR);
-    // Serial.println(digitalRead(CEMETARY_DOOR));
+    // Serial.println(digitalRead(SLIDE_DOOR_SENSOR));
     if (prevSlideDoorSensor != currentSlideDoorSensor) {
         if (currentSlideDoorSensor == 0) {
             // Serial.println("TRIGGER");
             updateRelay(CEMETARY_DOOR, HIGH);
+            send_message_all(SlideDoor, 4);
+        } else {
+            send_message_all(SlideDoor, 3);
         }
         prevSlideDoorSensor = currentSlideDoorSensor;
     }

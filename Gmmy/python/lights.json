@@ -16,7 +16,7 @@
         {
             "id":"PIN",
             "channels":[
-                 "R", "G", "B", "BRIGHTNESS", "STROBE", "MACRO_SPEED"
+                 "R", "G", "B", "W", "BRIGHTNESS", "EXTRA"
             ]
         },
         {
@@ -42,14 +42,6 @@
     {
         "lights": [
             {
-                "id":"practicals",
-                "type":"DEC",
-                "address":1,
-                "room":"hallway",
-                "default_color":"#FFFFFF"
-            },
-
-            {
                 "id":"forest_wash_a",
                 "type":"SR",
                 "address":4,
@@ -59,7 +51,7 @@
 
             {
                 "id":"entrance",
-                "type":"OPP",
+                "type":"SR",
                 "address":8,
                 "room":"cemetary",
                 "default_color":"#00FFFF"
@@ -70,68 +62,16 @@
                 "type":"SR",
                 "address":17,
                 "room":"cemetary",
-                "default_color":"#FF0000"
+                "default_color":"#0000FF"
             },
 
+        
             {
-                "id":"w_cob",
-                "type":"COB",
-                "address":21,
-                "room":"hallway",
-                "default_color":"#FFFFFF"
-            },
-
-            {
-                "id":"nw_sr",
-                "type":"SR",
-                "address":28,
-                "room":"parlor",
-                "default_color":"#FFFFFF"
-            },
-
-            {
-                "id":"west_window_cob",
-                "type":"COB",
-                "address":32,
-                "room":"parlor",
-                "default_color":"#FFFFFF"
-
-            },
-
-            {
-                "id":"big_window_t",
+                "id":"forest_crypt_t",
                 "type":"T12",
-                "address":39,
-                "room":"parlor",
-                "default_color":"#FFFFFF"
-
-            },
-
-            {
-                "id":"window_pinspot",
-                "type":"PIN",
-                "address":42,
-                "room":"parlor",
-                "default_color":"#FFFFFF"
-
-            },
-
-
-            {
-                "id":"east_window_cob",
-                "type":"COB",
-                "address":48,
+                "address":72,
                 "room":"cemetary",
-                "default_color":"#FFFFFF"
-
-            },
-
-            {
-                "id":"dracula_uplight_cob",
-                "type":"COB",
-                "address":55,
-                "room":"bedroom",
-                "default_color":"#FFFFFF"
+                "default_color":"#FF0000"
 
             },
 
@@ -140,7 +80,7 @@
                 "type":"COB",
                 "address":62,
                 "room":"crypt",
-                "default_color":"#00FFFF"
+                "default_color":"#0000FF"
 
             },
 
@@ -149,23 +89,32 @@
                 "type":"T12",
                 "address":69,
                 "room":"crypt",
-                "default_color":"#00FF88"
+                "default_color":"#0000FF"
 
             },
+
             {
-                "id":"forest_crypt_t",
-                "type":"T12",
-                "address":72,
-                "room":"crypt",
-                "default_color":"#8800FF"
-
+                "id":"practicals",
+                "type":"DEC",
+                "address":1,
+                "room":"hallway",
+                "default_color":"#FFFFFF"
             },
+
+            {
+                "id":"w_cob",
+                "type":"COB",
+                "address":21,
+                "room":"hallway",
+                "default_color":"#FFFF00"
+            },
+
             {
                 "id":"hallway_cob",
                 "type":"COB",
                 "address":75,
                 "room":"hallway",
-                "default_color":"#FFFFFF"
+                "default_color":"#00FFFF"
 
             },
             {
@@ -173,7 +122,7 @@
                 "type":"COB",
                 "address":82,
                 "room":"hallway",
-                "default_color":"#FFFFFF"
+                "default_color":"#FF0000"
 
             },
             {
@@ -181,63 +130,110 @@
                 "type":"COB",
                 "address":89,
                 "room":"hallway",
-                "default_color":"#FFFFFF"
+                "default_color":"#FFFF00"
 
             },
+
             {
-                "id":"skeletons_cob",
+                "id":"nw_sr",
+                "type":"SR",
+                "address":28,
+                "room":"parlor",
+                "default_color":"#FF00FF"
+            },
+
+            {
+                "id":"west_window_cob",
                 "type":"COB",
-                "address":96,
-                "room":"skeletons",
-                "default_color":"#FFFFFF"
+                "address":32,
+                "room":"parlor",
+                "default_color":"#ff9c00"
 
             },
+
             {
-                "id":"fake_mirror_pinspot",
+                "id":"east_window_cob",
+                "type":"COB",
+                "address":48,
+                "room":"parlor",
+                "default_color":"#ff9c00"
+
+            },
+
+            {
+                "id":"big_window_t",
+                "type":"T12",
+                "address":39,
+                "room":"parlor",
+                "default_color":"#ff9c00"
+            },
+
+            {
+                "id":"window_pinspot",
                 "type":"PIN",
                 "address":103,
-                "room":"bedroom",
-                "default_color":"#FFFFFF"
-
+                "room":"parlor",
+                "default_color":"#ffffff"
             },
-            {
-                "id":"beam_t",
-                "type":"T12",
-                "address":109,
-                "room":"bedroom",
-                "default_color":"#FFFFFF"
 
-            },
-            {
-                "id":"beam_cob",
-                "type":"COB",
-                "address":112,
-                "room":"bedroom",
-                "default_color":"#FFFFFF"
-
-            },
             {
                 "id":"beam_t",
                 "type":"T12",
                 "address":119,
                 "room":"parlor",
-                "default_color":"#FFFFFF"
-
+                "default_color":"#FFFF00"
             },
             {
                 "id":"beam_sr",
                 "type":"SR",
                 "address":122,
                 "room":"parlor",
-                "default_color":"#FFFFFF"
+                "default_color":"#0000FF"
 
             },
+            
+
+            {
+                "id":"skeletons_cob",
+                "type":"COB",
+                "address":96,
+                "room":"skeletons",
+                "default_color":"#00FFFF"
+
+            },
+
+            {
+                "id":"dracula_uplight_cob",
+                "type":"COB",
+                "address":55,
+                "room":"bedroom",
+                "default_color":"#FF0000"
+            },
+
+      
+            {
+                "id":"fake_mirror_pinspot",
+                "type":"PIN",
+                "address":500,
+                "room":"bedroom",
+                "default_color":"#FF0000"
+
+            },
+           
             {
                 "id":"beam_cob",
                 "type":"COB",
-                "address":126,
-                "room":"parlor",
-                "default_color":"#FFFFFF"
+                "address":112,
+                "room":"bedroom",
+                "default_color":"#FF0000"
+
+            },
+            {
+                "id":"center_t",
+                "type":"T12",
+                "address":109,
+                "room":"bedroom",
+                "default_color":"#FF0000"
 
             }
             

@@ -1,10 +1,37 @@
 [
     {
-        "name":"2_stairs_lightning",
-        "lights":["forest_wash_a", "forest_wash_b", "entrance", "forest_crypt_t"],
-        "duration":5000,
-        "priority":1,
+        "name":"magic_words_on",
+        "lights":["practicals",
+                    "w_cob",
+                    "hallway_cob",
+                    "hall_entrace_cob",
+                    "slide_cob",
+                    "nw_sr",
+                    "beam_t",
+                    "beam_sr"],
+        "duration":100,
+        "priority":50,
         "delay":0,
+        "loop":false,
+        "steps":[
+            {
+                "pos":0,
+                "color":"default",
+                "brightness":100
+            },
+            {
+                "pos":1,
+                "color":"default",
+                "brightness":0
+            }
+        ]
+    },
+    {
+        "name":"magic_words",
+        "lights":["west_window_cob", "east_window_cob", "big_window_t",  "entrance", "forest_crypt_t", "forest_wash_a"],
+        "duration":5000,
+        "priority":250,
+        "delay":1000,
         "loop":false,
         "steps":[
             {
@@ -117,12 +144,20 @@
             }
         ]
     },
+   
     {
-        "name":"2_stairs_fade_on",
-        "lights":["staircase_cob", "upstairs_t"],
+        "name":"magic_words_on",
+        "lights":["practicals",
+        "w_cob",
+        "hallway_cob",
+        "hall_entrace_cob",
+        "slide_cob",
+        "nw_sr",
+        "beam_t",
+        "beam_sr"],
         "duration":5000,
-        "priority":0,
-        "delay":3000,
+        "priority":500,
+        "delay":6000,
         "loop":false,
         "steps":[
             {
@@ -134,6 +169,29 @@
                 "pos":1,
                 "color":"default",
                 "brightness":100
+            }
+        ]
+    },
+
+    {
+        "name":"magic_words_on",
+        "lights":["dracula_uplight_cob",
+        "beam_cob",
+        "center_t"],
+        "duration":5000,
+        "priority":0,
+        "delay":6000,
+        "loop":false,
+        "steps":[
+            {
+                "pos":0,
+                "color":"default",
+                "brightness":0
+            },
+            {
+                "pos":1,
+                "color":"default",
+                "brightness":75
             }
         ]
     }

@@ -2,22 +2,26 @@ import curses
 import threading
 
 class CLIControl(threading.Thread):
-    def __init__(self, buttons_instance, puzzles, mega):
+    def __init__(self, buttons_instance, puzzles, mega, scenes, scene_manager):
         super().__init__()
         self.buttons = buttons_instance
         self.running = True
         self.actions = ["start", "time_up", "time_down", "reset", "win", "lose", "quit"]
-        self.selected = -1
         self.log_win = None
         self.header_win = None
         self.scenes_win = None
         self.puzzles_menu_win = None
+        self.scenes_menu_win = None
         self.log_height = 10
+        self.selected = -1
         self.puzzles_selected = 0
+        self.scenes_selected = -1
         self.active_menu = "puzzles"  # Can be "main" or "puzzles"
         self.log_messages = []
         self.puzzles = puzzles
         self.mega = mega
+        self.scenes = scenes
+        self.scene_manager = scene_manager
 
     def run(self):
         curses.wrapper(self.curses_main)
@@ -40,12 +44,14 @@ class CLIControl(threading.Thread):
         scenes_height = 2
         menu_height = 1
         puzzles_menu_width = 30
-        log_width = width - puzzles_menu_width
+        scenes_menu_width = 30
+        log_width = width - puzzles_menu_width - scenes_menu_width
 
         self.header_win = curses.newwin(header_height, width, 0, 0)
         self.scenes_win = curses.newwin(scenes_height, width, 1, 0)
         self.puzzles_menu_win = curses.newwin(height - header_height - menu_height - scenes_height, puzzles_menu_width, header_height + scenes_height, 0)
-        self.log_win = curses.newwin(height - header_height - menu_height - scenes_height, log_width, header_height + scenes_height, puzzles_menu_width)
+        self.scenes_menu_win = curses.newwin(height - header_height - menu_height - scenes_height, scenes_menu_width, header_height + scenes_height, puzzles_menu_width)
+        self.log_win = curses.newwin(height - header_height - menu_height - scenes_height, log_width, header_height + scenes_height, puzzles_menu_width+scenes_menu_width)
         menu_win = curses.newwin(menu_height, width, height - menu_height, 0)
 
         self.puzzles_menu_win.keypad(True)
@@ -56,13 +62,19 @@ class CLIControl(threading.Thread):
         while self.running:
             self.draw_menu(menu_win)
             self.draw_puzzles_menu()
+            self.draw_scenes_menu()
             self.update_log()
 
             key = menu_win.getch() if self.active_menu == "main" else self.puzzles_menu_win.getch()
 
 
             if key == 9:
-                self.active_menu = "puzzles" if self.active_menu == "main" else "main"
+                if self.active_menu == "main":
+                    self.active_menu = "puzzles"
+                elif self.active_menu == "puzzles":
+                    self.active_menu = "scenes"
+                elif self.active_menu == "scenes":
+                    self.active_menu = "main"
                 continue
             
             num_puzzles = len(self.puzzles)
@@ -74,8 +86,8 @@ class CLIControl(threading.Thread):
                         self.selected -= 1
                     else:
                         self.selected = -1
-                        self.active_menu = "puzzles"
-                        self.puzzles_selected = (num_puzzles * 2) - 2
+                        self.active_menu = "scenes"
+                        self.scenes_selected = len(self.scenes) - 1
                 elif key in [curses.KEY_RIGHT, curses.KEY_DOWN]:
                     if self.selected < len(self.actions) - 1:
                         self.selected += 1
@@ -104,8 +116,8 @@ class CLIControl(threading.Thread):
                         self.puzzles_selected += 3
                     else:
                         self.puzzles_selected += 3
-                        self.active_menu = "main"
-                        self.selected = 0
+                        self.active_menu = "scenes"
+                        self.scenes_selected = 0
 
                 # Handling RIGHT and LEFT keys
                 elif key == curses.KEY_RIGHT:
@@ -126,6 +138,27 @@ class CLIControl(threading.Thread):
                         self.overridePuzzle(self.puzzles[selected_puzzle_index]['signal'])
                     elif selected_action == 'B':
                         self.rebootPuzzle(self.puzzles[selected_puzzle_index]['signal'])
+
+            elif self.active_menu == "scenes":
+                if key in [curses.KEY_LEFT, curses.KEY_UP]:
+                    if self.scenes_selected > 0:
+                        self.scenes_selected -= 1
+                    else:
+                        self.scenes_selected = -1
+                        self.active_menu = "puzzles"
+                        self.puzzles_selected = (num_puzzles * 2) - 2
+                elif key in [curses.KEY_RIGHT, curses.KEY_DOWN]:
+                    if self.scenes_selected < len(self.scenes) - 1:
+                        self.scenes_selected += 1
+                    else:
+                        self.active_menu = "main"
+                        self.selected = 0
+                        self.scenes_selected = -1
+
+                elif key in [curses.KEY_ENTER, ord('\n'), ord(' ')]:
+                    # self.process_command(self.actions[self.selected])
+                    scene = self.scenes[self.scenes_selected]['name']
+                    self.scene_manager.toggle_forced_scene(scene)
 
         curses.endwin()
 
@@ -149,6 +182,24 @@ class CLIControl(threading.Thread):
             self.scenes_win.addstr(1, 0, horizontal_rule)
 
             self.scenes_win.refresh()
+
+    def draw_scenes_menu(self):
+        if self.scenes_menu_win is not None:
+            height, width = self.scenes_menu_win.getmaxyx()
+            self.scenes_menu_win.clear()
+
+
+            for idx, action in enumerate(self.scenes):
+                if idx >= height - 1:
+                    break
+                mode = curses.A_REVERSE if idx == self.scenes_selected else curses.A_NORMAL
+                
+                display_text = action["name"][:width - 1]
+
+                self.scenes_menu_win.addstr(idx, 0, display_text, mode)
+
+
+            self.scenes_menu_win.refresh()
 
     def draw_menu(self, menu_win):
         menu_win.clear()
