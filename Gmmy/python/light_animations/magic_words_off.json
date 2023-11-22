@@ -1,0 +1,24 @@
+[
+    {
+        "name":"magic_words_off",
+        "lights":["dracula_uplight_cob",
+        "beam_cob",
+        "center_t"],
+        "duration":2000,
+        "priority":0,
+        "delay":0,
+        "loop":false,
+        "steps":[
+            {
+                "pos":0,
+                "color":"default",
+                "brightness":100
+            },
+            {
+                "pos":1,
+                "color":"#000000",
+                "brightness":0
+            }
+        ]
+    }
+]

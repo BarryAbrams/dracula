@@ -26,6 +26,9 @@ class MessageSignal(IntEnum):
     Puzzle8 = 7
     Puzzle9 = 8
     Puzzle10 = 9
+    DoorBell = 15
+    SlideDoor = 16
+    CoffinDoor = 17
     Sound = 19
     Time = 20
     Shutdown = 21
@@ -50,10 +53,13 @@ class SoundFX(IntEnum):
     HarpSweep = 3
     Coins = 4
     DraculaOutro = 5
+    DoorOpen = 6
     Whispers = 7
     HeavyDoorOpen = 8
-    PressurePlate = 15
+    DoorClose = 9
+    Hiss = 10
     Gong = 11
+    PressurePlate = 15
     BatSwarm = 17
 
 prev_played_sound_effects = []
@@ -80,22 +86,22 @@ puzzles = [
         "solve_sound":SoundFX.Gong
     },
     {
-        "name":"seance",
+        "name":"magic_words",
         "signal":MessageSignal.Puzzle6,
-        "state":MessageData.NoData
+        "state":MessageData.NoData,
+        "solve_sound":SoundFX.Thunder
     },
     {
         "name":"cryptex",
         "signal":MessageSignal.Puzzle7,
         "state":MessageData.NoData,
-        "solve_sound":SoundFX.HarpSweep
+        "solve_sound":SoundFX.PressurePlate,
     },
     {
         "name":"illuminate",
         "signal":MessageSignal.Puzzle9,
         "state":MessageData.NoData,
-        "solve_sound":SoundFX.Whispers,
-        "unsolve_sound":SoundFX.PressurePlate,
+        "solve_sound":SoundFX.Whispers
     },
     {
         "name":"dracula",
@@ -132,7 +138,8 @@ scenes = [
         "replaces":["preshow"],
         "music":"69_Forest_Night.mp3",
         "light_animation_true":"intro",
-        "sound_effect":SoundFX.DraculaIntro
+        "sound_effect":SoundFX.Whispers
+
     },
     {
         "name":"stairs",
@@ -143,14 +150,24 @@ scenes = [
         "light_animation_true":"stairs",
         "light_animation_false":"stairs_off"
     },
+     {
+        "name":"gemstones",
+        "requirements": [
+            ["all", {"puzzle": "gemstones", "state": MessageData.Solved}]
+        ],
+        "replaces":[],
+        "light_animation_true":"gemstones",
+        "light_animation_false":"gemstones_off"
+    },
     {
         "name":"hallway",
         "requirements": [
-            ["all", {"puzzle": "slide", "state": MessageData.Solved}]
+            ["all", {"global_check": "slide_open", "value":True}]
         ],
         "replaces":[],
         "music":"242_Spiders_Den.mp3",
-        "light_animation_true":"hallway"
+        "light_animation_true":"hallway",
+        "light_animation_false":"hallway_off"
     },
     {
         "name":"parlor",
@@ -161,22 +178,40 @@ scenes = [
             ]
         ],
         "replaces":[],
-        "music":"148_Barovian_Castle.mp3"
+        "music":"148_Barovian_Castle.mp3",
+        "sound_effect":SoundFX.DraculaIntro,
+        "light_animation_true":"parlor",
+        "light_animation_false":"parlor_off"
     },
     {
-        "name":"bedroom",
+        "name":"magic_words",
+        "requirements": [
+            ["any", 
+            {"puzzle": "magic_words", "state": MessageData.Solved}
+            ]
+        ],
+        "replaces":[],
+        "sound_effect":SoundFX.DraculaIntro,
+        "light_animation_true":"magic_words",
+        "light_animation_false":"magic_words_off"
+    },
+    {
+        "name":"cryptex",
         "requirements": [
             ["all", {"puzzle": "cryptex", "state": MessageData.Solved}]
         ],
         "replaces":[],
-        "music":"242_Spiders_Den.mp3"
+        "light_animation_true":"cryptex",
+        "light_animation_false":"cryptex_off"
     },
     {
         "name":"illuminate",
         "requirements": [
-            ["all", {"puzzle": "dracula_illuminate", "state": MessageData.Solved}]
+            ["all", {"puzzle": "illuminate", "state": MessageData.Solved}]
         ],
-        "replaces":["parlor", "bedroom", "hallway"]
+        "replaces":[],
+        "light_animation_true":"illuminate",
+        "light_animation_false":"illuminate_off"
     },
     {
         "name":"kill_dracula",
@@ -220,7 +255,7 @@ class BackgroundSound:
         sound_filepath = os.path.join(current_directory, "ambient", filename)
         
         # For debugging purposes
-        # log(f"Play ambient: {filename}")
+        log(f"Play ambient: {filename}")
 
         if self.current_track:
             pygame.mixer.music.fadeout(fade_time)
@@ -274,6 +309,7 @@ class Timer(object):
             globals_module.gm_reset = False
             globals_module.has_lost = False
             globals_module.has_won = False
+            globals_module.door_bell_pressed = False
             self.scene_manager.update_scenes()
             if self.display is not None:
                 self.display.win_time = None
@@ -299,6 +335,7 @@ class Timer(object):
             self.seconds_left -= 60
 
     def kill_timer(self):
+        globals_module.gm_reset = False
         if self.is_running == False:
             prev_played_scenes = []
             prev_played_sound_effects = []
@@ -339,6 +376,16 @@ class Mega(object):
                 signal_name = MessageSignal(message_signal).name
                 data_name = MessageData(message_data).name
                 
+                if message_signal == 17:
+                    update_coffin_door(message_data)
+
+                if message_signal == 16:
+                    update_slide_door(message_data)
+
+                if message_signal == 15:
+                    print("DOOR BELL")
+                    update_door_bell(message_data)
+
                 if message_signal <= 9:
                     self.perform_logic(message_signal, message_data)
 
@@ -359,6 +406,8 @@ class Mega(object):
         """Send a message to the Arduino."""
         signal = signal & 0x7F
         data = data & 0x7F
+
+        print("SEND MESSAGE", signal, data)
         
         self.ser.write(bytes([signal | 0x80, data]))
 
@@ -442,6 +491,12 @@ class Light:
                 self.channel_values['MACRO'] = 0
                 self.channel_values['MACRO_SPEED'] = 0
 
+            if "ON" in self.channel_values:
+                self.channel_values['ON'] = 250
+
+            if "EXTRA" in self.channel_values:
+                self.channel_values['EXTRA'] = 0
+
         else:
             raise ValueError("Invalid hex color format or the light does not have the required channels")
 
@@ -462,7 +517,7 @@ class Light:
 
 class SceneManager(object):
     def __init__(self, background_sound):
-        port = find_port(0x6001)
+        port = find_port(0x0094)
         if not port:
             print("Error: DMX Dongle not found.")
             sys.exit(1)  # Exits the script with an error status
@@ -471,7 +526,7 @@ class SceneManager(object):
         self.sound = background_sound
         self.current_music = None
         self.active_scenes = []
-        self.frames_per_second = 30
+        self.frames_per_second = 90
         self.light_types = self.load_light_types()
         self.lights = self.load_lights()
         self.active_animations = []
@@ -586,8 +641,11 @@ class SceneManager(object):
         if elapsed < animation.delay:
             return  # Delay not yet passed, do not start the animation
 
-        # Adjust elapsed time to account for the delay
         adjusted_elapsed = elapsed - animation.delay
+
+        # Check if the animation has reached or passed its duration
+        if adjusted_elapsed >= animation.duration:
+            adjusted_elapsed = animation.duration  # Ensure we don't exceed the duration
 
         pos = (adjusted_elapsed % animation.duration) / animation.duration
 
@@ -602,7 +660,7 @@ class SceneManager(object):
                 break
 
         # Handle wrap-around for looping animations
-        if pos >= animation.steps[-1]['pos']:
+        if pos >= animation.steps[-1]['pos'] or adjusted_elapsed == animation.duration:
             current_step = animation.steps[-1]
             next_step = animation.steps[0]
 
@@ -610,7 +668,6 @@ class SceneManager(object):
             return  # No valid steps found
 
         # Interpolate the color
-
         for light_id in animation.lights:
             active_animation = self.get_active_animation_for_light(light_id)
             if active_animation != animation:
@@ -623,6 +680,7 @@ class SceneManager(object):
                 light.setColor(color)
 
         self.render_scene()
+
 
     def interpolate_color(self, light, start_color, end_color, start_brightness, end_brightness, pos, start_pos, end_pos):
         """
@@ -686,28 +744,23 @@ class SceneManager(object):
     def loop(self):
         while True:
             current_time = time.time()
-            
+
             for animation in self.active_animations[:]:
                 elapsed = (current_time - animation.start_time) * 1000
 
                 if animation.start_time == animation.initial_start_time and elapsed < animation.delay:
                     continue
 
-                if elapsed - (animation.delay if animation.start_time == animation.initial_start_time else 0) > animation.duration:
+                if elapsed - (animation.delay if animation.start_time == animation.initial_start_time else 0) >= animation.duration:
                     if animation.loop:
-                        animation.start_time = current_time - ((elapsed - animation.delay) % animation.duration) / 1000
+                        # Reset start_time for looping animations
+                        animation.start_time = current_time
                     else:
                         self.active_animations.remove(animation)
-                        any_others = False
-                        for active_animation in self.active_animations:
-                            if active_animation.scene == animation.scene:
-                                any_others = True
-
-                        if any_others == False:
+                        if not any(active_animation.scene == animation.scene for active_animation in self.active_animations):
                             self.active_animation_names.remove(animation.scene)
                         continue
 
-             
                 self.update_lights_for_animation(animation, current_time)
 
             self.render_scene()
@@ -757,7 +810,7 @@ class SceneManager(object):
             if 'light_animation_true' in scene:
                 self.play_animation(scene['light_animation_true'])
 
-        # log("active scenes: " + ", ".join(active_scene_names))
+        log_active_scenes(active_scene_names)
 
         self.active_scenes = active_scenes
 
@@ -927,6 +980,10 @@ class Buttons(object):
         globals_module.has_won = False
         globals_module.has_lost = False
         self.timer.scene_manager.update_scenes()
+        self.timer.scene_manager.play_animation("preshow")
+        mega.send_message(18, 0)
+
+        self.timer.kill_timer()
 
 
     def run(self):
@@ -946,7 +1003,7 @@ class Buttons(object):
                                 elif button == "time_down":
                                     self.timer.remove_time()
                                 elif button == "reset":
-                                    self.timer.kill_timer()
+                                    self.reset()
                                 elif button == "win" or button == "lose" or button == "quit":
                                     if button == "win":
                                         self.win_game()
@@ -961,6 +1018,36 @@ class Buttons(object):
                 pass
             finally:
                 GPIO.cleanup()
+
+def update_coffin_door(message):
+    if message == 3:
+        bootunes.play_sound(SoundFX.DoorOpen)
+        globals_module.crypt_open = False
+        sceneManager.update_scenes()
+    else:
+        bootunes.play_sound(SoundFX.Hiss)
+        globals_module.crypt_open = True
+        sceneManager.update_scenes()
+
+def update_slide_door(message):
+    if message == 3:
+        bootunes.play_sound(SoundFX.DoorOpen)
+        globals_module.slide_open = False
+        sceneManager.update_scenes()
+    else:
+        bootunes.play_sound(SoundFX.DoorClose)
+        globals_module.slide_open = True
+        sceneManager.update_scenes()
+
+def update_door_bell(message):
+    if message == 3:
+        bootunes.play_sound(SoundFX.DoorOpen)
+        globals_module.door_bell_pressed = False
+        sceneManager.update_scenes()
+    else:
+        bootunes.play_sound(SoundFX.Hiss)
+        globals_module.door_bell_pressed = True
+        sceneManager.update_scenes()
 
 def log(message):
     if cli_control is not None:
@@ -990,6 +1077,8 @@ def log_active_scenes(active_scenes):
     else:
         print("\r Active Scenes:"+", ".join(active_scenes))
 
+slide_open = False
+
 def get_global_variables():
     # Access the global variables from globals_module
     return {
@@ -997,6 +1086,8 @@ def get_global_variables():
         "gm_reset": globals_module.gm_reset,
         "has_won": globals_module.has_won,
         "has_lost": globals_module.has_lost,
+        "crypt_open":globals_module.crypt_open,
+        "slide_open":globals_module.slide_open,
         # Add other global variables as needed
     }
 
@@ -1031,7 +1122,7 @@ if __name__ == "__main__":
         disp = Display(timer)
         timer.display = disp
 
-        global_variable.gm_reset = True
+        # global_variable.gm_reset = True
 
     if args.cli:
         cli_control = clicontrol.CLIControl(buttons, puzzles, mega)
@@ -1069,5 +1160,5 @@ if __name__ == "__main__":
             print('received json: ' + str(json))
             socketio.emit("dmx", sceneManager.prev_dmx_universe)
                 
-        socketio.run(app, debug=False)
+        socketio.run(app, host="0.0.0.0", debug=False)
         pass

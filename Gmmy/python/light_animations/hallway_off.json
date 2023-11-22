@@ -1,0 +1,22 @@
+[
+    {
+        "name":"hallway_off",
+        "lights":["practicals", "w_cob", "hallway_cob", "hall_entrace_cob", "slide_cob"],
+        "duration":500,
+        "priority":100,
+        "delay":0,
+        "loop":false,
+        "steps":[
+            {
+                "pos":0,
+                "color":"default",
+                "brightness":100
+            },
+            {
+                "pos":1,
+                "color":"default",
+                "brightness":0
+            }
+        ]
+    }
+]

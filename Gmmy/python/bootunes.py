@@ -11,6 +11,9 @@ MAX_SOUNDS = 120
 i2c = busio.I2C(board.SCL, board.SDA)
 mcp = MCP23017(i2c)
 
+script_start_time = time.time()
+
+
 # Initialize pins
 pins = [mcp.get_pin(i) for i in range(8)]
 for pin in pins:
@@ -35,7 +38,10 @@ def stop_sounds():
     send_command()
 
 def play_sound(sound_number):
-    print("PLAY SOUND: ", sound_number)
+    if time.time() - script_start_time < 10:
+        # print("Less than 10 seconds have elapsed since script start. Function call ignored.")
+        return
+    # print("PLAY SOUND: ", sound_number)
     stop_sounds()
 
     if sound_number < 1 or sound_number > 120:

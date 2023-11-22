@@ -1,0 +1,42 @@
+[
+    {
+        "name":"illuminate_off",
+        "lights":["fake_mirror_pinspot"],
+        "duration":2500,
+        "priority":50,
+        "delay":0,
+        "loop":false,
+        "steps":[
+            {
+                "pos":0,
+                "color":"default",
+                "brightness":100
+            },
+            {
+                "pos":1,
+                "color":"default",
+                "brightness":0
+            }
+        ]
+    },
+    {
+        "name":"dim_everything",
+        "lights":["forest_wash_a","entrance","forest_wash_b","forest_crypt_t","staircase_cob","upstairs_t",         "practicals","w_cob","hallway_cob","hall_entrace_cob","slide_cob","nw_sr","west_window_cob", "east_window_cob","big_window_t","beam_t","beam_sr","skeletons_cob","dracula_uplight_cob","beam_cob","center_t"],
+        "duration":1000,
+        "priority":5000,
+        "delay":0,
+        "loop":false,
+        "steps":[
+            {
+                "pos":0,
+                "color":"default",
+                "brightness":0
+            },
+            {
+                "pos":1,
+                "color":"default",
+                "brightness":100
+            }
+        ]
+    }
+]

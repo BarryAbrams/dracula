@@ -1,0 +1,22 @@
+[ 
+    {
+        "name":"cryptex",
+        "lights":["window_pinspot"],
+        "duration":1000,
+        "priority":2000,
+        "delay":0,
+        "loop":false,
+        "steps":[
+            {
+                "pos":0,
+                "color":"default",
+                "brightness":0
+            },
+            {
+                "pos":1,
+                "color":"default",
+                "brightness":100
+            }
+        ]
+    }
+]

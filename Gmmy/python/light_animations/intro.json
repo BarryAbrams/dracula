@@ -1,7 +1,7 @@
 [
     {
         "name":"other",
-        "lights":["forest_wash_a", "forest_wash_b", "entrance"],
+        "lights":["forest_wash_a", "forest_wash_b", "entrance", "forest_crypt_t"],
         "duration":5000,
         "priority":0,
         "delay":0,
@@ -11,6 +11,11 @@
                 "pos":0,
                 "color":"default",
                 "brightness":50
+            },
+            {
+                "pos":0.25,
+                "color":"default",
+                "brightness":0
             },
             {
                 "pos":1,

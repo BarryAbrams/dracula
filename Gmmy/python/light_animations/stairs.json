@@ -1,7 +1,7 @@
 [
     {
         "name":"2_stairs_lightning",
-        "lights":["forest_wash_a", "forest_wash_b"],
+        "lights":["forest_wash_a", "forest_wash_b", "entrance", "forest_crypt_t"],
         "duration":5000,
         "priority":1,
         "delay":0,
@@ -119,10 +119,10 @@
     },
     {
         "name":"2_stairs_fade_on",
-        "lights":["staircase_cob", "upstairs_t", "forest_crypt_t"],
+        "lights":["staircase_cob", "upstairs_t"],
         "duration":5000,
         "priority":0,
-        "delay":1000,
+        "delay":3000,
         "loop":false,
         "steps":[
             {

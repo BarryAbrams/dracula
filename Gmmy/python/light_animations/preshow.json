@@ -2,9 +2,9 @@
 
     {
         "name":"other",
-        "lights":["forest_wash_a", "entrance", "forest_wash_b"],
+        "lights":["forest_wash_a", "entrance", "forest_wash_b", "forest_crypt_t"],
         "duration":5000,
-        "priority":0,
+        "priority":1,
         "delay":0,
         "loop":false,
         "steps":[
@@ -22,8 +22,8 @@
     },
     {
         "name":"other",
-        "lights":["practicals", "w_cob", "nw_sr", "west_window_cob", "big_window_t", "window_pinspot", "east_window_cob", "dracula_uplight_cob", "staircase_cob", "upstairs_t", "forest_crypt_t", "hallway_cob", "hall_entrace_cob", "slide_cob", "skeletons_cob", "fake_mirror_pinspot", "beam_t", "beam_cob","beam_t", "beam_sr", "beam_cob"],
-        "duration":5000,
+        "lights":["forest_wash_a","entrance","forest_wash_b","forest_crypt_t","staircase_cob","upstairs_t",         "practicals","w_cob","hallway_cob","hall_entrace_cob","slide_cob","nw_sr","west_window_cob", "east_window_cob","big_window_t","beam_t","beam_sr","skeletons_cob","dracula_uplight_cob","beam_cob","center_t"],
+        "duration":500,
         "priority":0,
         "delay":0,
         "loop":false,
@@ -35,7 +35,7 @@
             },
             {
                 "pos":1,
-                "color":"#000000",
+                "color":"default",
                 "brightness":0
             }
         ]

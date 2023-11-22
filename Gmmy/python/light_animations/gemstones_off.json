@@ -1,0 +1,23 @@
+[
+    {
+        "name":"gemstones_off",
+        "lights":["staircase_cob", "upstairs_t"],
+        "duration":500,
+        "priority":10,
+        "delay":0,
+        "loop":false,
+        "steps":[
+            {
+                "pos":1,
+                "color":"#FFFF00",
+                "brightness":100
+            },
+            {
+                "pos":0,
+                "color":"default",
+                "brightness":50
+            }
+            
+        ]
+    }
+]

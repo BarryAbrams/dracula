@@ -1,0 +1,44 @@
+[
+    {
+        "name":"outside",
+        "lights":["west_window_cob", "east_window_cob", "big_window_t"],
+        "duration":2000,
+        "priority":10,
+        "delay":0,
+        "loop":false,
+        "steps":[
+            {
+                "pos":0,
+                "color":"default",
+                "brightness":0
+            },
+            {
+                "pos":1,
+                "color":"default",
+                "brightness":100
+            }
+        ]
+    },
+    {
+        "name":"room",
+        "lights":["nw_sr",
+        "beam_t",
+        "beam_sr"],
+        "duration":2000,
+        "priority":10,
+        "delay":5000,
+        "loop":false,
+        "steps":[
+            {
+                "pos":0,
+                "color":"default",
+                "brightness":0
+            },
+            {
+                "pos":1,
+                "color":"default",
+                "brightness":50
+            }
+        ]
+    }
+]
